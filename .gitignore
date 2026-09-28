@@ -1,0 +1,25 @@
+# Proprietary game data - NEVER publish
+*.apk
+*.obb
+assets/
+extracted/
+obb/
+
+# Local game data
+game/*
+!game/*.unpacked
+
+# Build/intermediate files
+*.o
+*.obj
+build/
+dist/
+
+# Logs/dumps
+*.log
+*.dump
+*.core
+
+# Temporary files
+*.bak
+*.backup

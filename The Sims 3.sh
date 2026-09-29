@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The Sims 3 — PortMaster launcher
-# Wrapper fino: localiza o runtime e entrega toda a execução a r36s.run.sh.
+# Wrapper fino: localiza o runtime e entrega toda a execução a run.sh.
 
 set -u
 
@@ -40,7 +40,7 @@ echo "[launcher] script_dir=$SCRIPT_DIR"
 echo "[launcher] pwd=$(pwd 2>/dev/null || true)"
 echo "[launcher] args=$*"
 
-if [ -n "\${SIMS3_GAME_DIR:-}" ] && [ -f "\${SIMS3_GAME_DIR:-}/r36s.run.sh" ]; then
+if [ -n "\${SIMS3_GAME_DIR:-}" ] && [ -f "\${SIMS3_GAME_DIR:-}/run.sh" ]; then
   GAMEDIR="$SIMS3_GAME_DIR"
 else
   GAMEDIR=""
@@ -67,7 +67,7 @@ else
   esac
 
   for candidate in "\${CANDIDATES[@]}"; do
-    if [ -f "$candidate/r36s.run.sh" ]; then
+    if [ -f "$candidate/run.sh" ]; then
       GAMEDIR="$(cd -P -- "$candidate" 2>/dev/null && pwd -P)" || GAMEDIR="$candidate"
       break
     fi
@@ -83,9 +83,9 @@ if [ -z "$GAMEDIR" ]; then
   exit 1
 fi
 
-RUN="$GAMEDIR/r36s.run.sh"
+RUN="$GAMEDIR/run.sh"
 if [ ! -f "$RUN" ]; then
-  echo "[ERROR] r36s.run.sh não encontrado: $RUN"
+  echo "[ERROR] run.sh não encontrado: $RUN"
   exit 1
 fi
 

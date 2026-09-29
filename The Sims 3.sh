@@ -1,107 +1,42 @@
-#!/usr/bin/env bash
-# The Sims 3 — PortMaster launcher
-# Wrapper fino: localiza o runtime e entrega toda a execução a run.sh.
+#!/bin/bash
+# PORTMASTER: sims3-native-arm.zip, The Sims 3.sh
+# The Sims 3 — Marmalade S3E loader
 
-set -u
+# shellcheck disable=SC1090,SC1091,SC2154
 
-resolve_self() {
-  local src="$1" dir base link
-  while [ -L "$src" ]; do
-    dir="$(cd -P -- "$(dirname -- "$src")" 2>/dev/null && pwd -P)" || return 1
-    link="$(readlink "$src" 2>/dev/null)" || return 1
-    case "$link" in
-      /*) src="$link" ;;
-      *)  src="$dir/$link" ;;
-    esac
-  done
-  dir="$(cd -P -- "$(dirname -- "$src")" 2>/dev/null && pwd -P)" || return 1
-  base="$(basename -- "$src")"
-  printf '%s/%s\n' "$dir" "$base"
-}
+XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 
-SELF="$(resolve_self "$0" 2>/dev/null || true)"
-[ -n "$SELF" ] || SELF="$0"
-SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SELF")" 2>/dev/null && pwd -P)" || exit 1
-
-LOGDIR="${SIMS3_LOG_DIR:-$SCRIPT_DIR/logs}"
-mkdir -p "$LOGDIR" 2>/dev/null || true
-LOG="${SIMS3_LAUNCHER_LOG:-$LOGDIR/The Sims 3 launcher.log}"
-if ! touch "$LOG" 2>/dev/null; then
-  LOG="${TMPDIR:-/tmp}/The Sims 3 launcher.log"
-  touch "$LOG" 2>/dev/null || true
-fi
-exec >>"$LOG" 2>&1
-
-echo "=== The Sims 3 / PortMaster launcher ==="
-echo "[launcher] date=$(date 2>/dev/null || true)"
-echo "[launcher] invoked=$0"
-echo "[launcher] real_script=$SELF"
-echo "[launcher] script_dir=$SCRIPT_DIR"
-echo "[launcher] pwd=$(pwd 2>/dev/null || true)"
-echo "[launcher] args=$*"
-
-if [ -n "${SIMS3_GAME_DIR:-}" ] && [ -f "${SIMS3_GAME_DIR:-}/run.sh" ]; then
-  GAMEDIR="$SIMS3_GAME_DIR"
+if [ -d "/opt/system/Tools/PortMaster/" ]; then
+    controlfolder="/opt/system/Tools/PortMaster"
+elif [ -d "/opt/tools/PortMaster/" ]; then
+    controlfolder="/opt/tools/PortMaster"
+elif [ -d "$XDG_DATA_HOME/PortMaster/" ]; then
+    controlfolder="$XDG_DATA_HOME/PortMaster"
 else
-  GAMEDIR=""
-  CANDIDATES=(
-    "$SCRIPT_DIR/sims3"
-    "$SCRIPT_DIR/../ports/sims3"
-    "$SCRIPT_DIR/../../ports/sims3"
-    "/mnt/sdcard/ports/sims3"
-    "/mnt/mmc/ports/sims3"
-    "/roms/ports/sims3"
-    "/roms2/ports/sims3"
-    "/storage/roms/ports/sims3"
-    "/userdata/roms/ports/sims3"
-    "/userdata/system/roms/ports/sims3"
-  )
-
-  case "$SCRIPT_DIR" in
-    */ports_scripts)
-      CANDIDATES+=(
-        "$SCRIPT_DIR/../ports/sims3"
-        "$SCRIPT_DIR/../../ports/sims3"
-      )
-      ;;
-  esac
-
-  for candidate in "${CANDIDATES[@]}"; do
-    if [ -f "$candidate/run.sh" ]; then
-      GAMEDIR="$(cd -P -- "$candidate" 2>/dev/null && pwd -P)" || GAMEDIR="$candidate"
-      break
-    fi
-  done
+    controlfolder="/roms/ports/PortMaster"
 fi
 
-echo "[launcher] gamedir=${GAMEDIR:-<não encontrado>}"
+source "$controlfolder/control.txt"
 
-if [ -z "$GAMEDIR" ]; then
-  echo "[ERROR] pasta/runtime do port não encontrado."
-  echo "[ERROR] procurei relativo ao launcher e nos roots: /mnt/sdcard, /mnt/mmc, /roms, /roms2, /storage/roms, /userdata."
-  echo "[ERROR] verifique o log: $LOG"
-  exit 1
-fi
+export PORT_32BIT="Y"
 
-RUN="$GAMEDIR/run.sh"
-if [ ! -f "$RUN" ]; then
-  echo "[ERROR] run.sh não encontrado: $RUN"
-  exit 1
-fi
+[ -f "$controlfolder/tasksetter" ] &&
+    source "$controlfolder/tasksetter"
 
-cd "$GAMEDIR" || {
-  echo "[ERROR] não foi possível entrar em $GAMEDIR"
-  exit 1
-}
+[ -f "$controlfolder/device_info.txt" ] &&
+    source "$controlfolder/device_info.txt"
 
-chmod +x "$RUN" 2>/dev/null || true
+[ -f "$controlfolder/mod_${CFW_NAME}.txt" ] &&
+    source "$controlfolder/mod_${CFW_NAME}.txt"
+
+get_controls
+
+GAMEDIR="/$directory/ports/sims3"
+cd "$GAMEDIR" || exit 1
+
+[ -f "$GAMEDIR/run.sh" ] || exit 1
+chmod +x "$GAMEDIR/run.sh" 2>/dev/null || true
+
 export SIMS3_GAME_DIR="$GAMEDIR"
 
-echo "[launcher] runtime=$RUN"
-echo "[launcher] iniciando runtime em foreground"
-
-"$RUN" "$@"
-status=$?
-
-echo "[launcher] runtime exit=$status"
-exit "$status"
+exec "$GAMEDIR/run.sh" "$@"

@@ -6,6 +6,15 @@
 set -eu
 
 STAGE="${NXEXTRACT_STAGE:?NXEXTRACT_STAGE não definido}"
+GAME_DIR="${NXEXTRACT_GAME_DIR:-$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P)}"
+LOGDIR="${SIMS3_LOG_DIR:-$GAME_DIR/logs}"
+mkdir -p "$LOGDIR" || exit 1
+LOG="${SIMS3_HOOK_LOG:-$LOGDIR/unpack-s3e.log}"
+exec >>"$LOG" 2>&1
+echo "=== The Sims 3 / S3E unpack hook ==="
+echo "[hook] game_dir=$GAME_DIR"
+echo "[hook] stage=$STAGE"
+echo "[hook] log=$LOG"
 SRC="$STAGE/game/The Sims 3.s3e"
 DST="$STAGE/game/game.s3e.unpacked"
 

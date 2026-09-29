@@ -28,7 +28,7 @@ Roms/
     ├── The Sims 3.sh
     └── sims3/
         ├── sims3_s3e_loader
-        ├── r36s.run.sh
+        ├── run.sh
         └── game/
 ~~~
 

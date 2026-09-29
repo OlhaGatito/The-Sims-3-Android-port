@@ -2,17 +2,25 @@
 
 ## Versão do APK
 
-Use a versão **The Sims 3 Android 1.7.11 (APK Award)**, correspondente ao APK utilizado durante o desenvolvimento deste port.
+Use a versão **The Sims 3 Android 1.7.11 (APK Award)** correspondente à versão usada no desenvolvimento deste port.
 
-## Onde o APK deve estar
+O APK é usado somente durante a preparação dos dados e deve permanecer fora do repositório GitHub.
 
-O APK é necessário apenas durante a preparação dos arquivos e deve permanecer fora do repositório GitHub.
+## Instalação no PortMaster
 
-Ele pode ficar em uma pasta de trabalho no PC. O APK não deve ser copiado para a instalação final do PortMaster.
+Coloque o launcher na pasta de ports:
 
-## Estrutura de instalação
+~~~text
+/roms/ports/The Sims 3.sh
+~~~
 
-A instalação pode ficar assim:
+O diretório do port pode ficar, por exemplo:
+
+~~~text
+/roms/ports/sims3/
+~~~
+
+A estrutura final deve conter o loader, o runtime e a pasta de dados do jogo:
 
 ~~~text
 Roms/
@@ -20,31 +28,23 @@ Roms/
     ├── The Sims 3.sh
     └── sims3/
         ├── sims3_s3e_loader
-        ├── run.sh
+        ├── r36s.run.sh
         └── game/
-            └── game.s3e.unpacked
 ~~~
 
-O launcher deve ser colocado em:
-
-~~~text
-/roms/ports/The Sims 3.sh
-~~~
-
-O diretório do port deve ficar, por exemplo:
-
-~~~text
-/roms/ports/sims3/
-~~~
-
-O launcher procura os arquivos necessários e executa o loader.
+Ao iniciar pelo PortMaster, o runtime verifica os dados instalados e executa o fluxo de preparação quando necessário.
 
 ## Dados do jogo
 
-Os dados proprietários necessários pelo jogo devem permanecer fora do repositório GitHub e ser colocados no diretório game/ conforme a estrutura esperada pelo loader.
+Os dados proprietários necessários pelo jogo devem permanecer fora do repositório GitHub e ser colocados na pasta `game/` da instalação final.
 
-O APK, OBB, assets proprietários, bibliotecas originais, saves e outros dados proprietários não devem ser publicados neste repositório.
+Não publique nem envie ao GitHub:
 
-## Observação
+- APK;
+- OBB;
+- assets proprietários;
+- bibliotecas originais do jogo;
+- saves;
+- dumps ou outros dados extraídos do jogo.
 
-O repositório dedicado contém o código, loader, scripts e demais componentes desenvolvidos para o port. Os dados proprietários são fornecidos separadamente pelo usuário.
+O repositório contém somente o código, loader, scripts, arquivos de build e componentes técnicos desenvolvidos para o port.

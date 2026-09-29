@@ -28,7 +28,7 @@ if [ ! -s "$PAYLOAD" ]; then
   [ -f "$GAMEDIR/nxextract/nxextract.py" ] || { echo "[ERROR] nxextract/nxextract.py não encontrado."; exit 72; }
   [ -f "$GAMEDIR/nxextract/nxextract-runtime-env.sh" ] || { echo "[ERROR] nxextract/nxextract-runtime-env.sh não encontrado."; exit 72; }
   if [ ! -f "$GAMEDIR/nxextract/nxextract-ui" ]; then
-    echo "[runtime] aviso: nxextract-ui ainda não está presente; o motor poderá usar fallback headless."
+    echo "[runtime] nxextract-ui não empacotado; NXExtract usará modo automático/headless."
   fi
   NX_FIRMWARE_LIBS=""
   for d in "/opt/system/Tools/PortMaster/libs" "/opt/tools/PortMaster/libs" "/roms/ports/PortMaster/libs" "/roms/ports/PortMaster/runtime" "/storage/roms/ports/PortMaster/libs" "/usr/lib" "/lib"; do

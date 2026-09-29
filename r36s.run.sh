@@ -18,16 +18,18 @@ if [ -f /proc/device-tree/compatible ]; then
   echo "[runtime] compatible=$COMPAT"
 fi
 PAYLOAD="$GAMEDIR/game/game.s3e.unpacked"
-for f in "$GAMEDIR/r36s.run.sh" "$GAMEDIR/run-extractor.sh" "$GAMEDIR/nxextract-runtime-env.sh" "$GAMEDIR/nxextract.py" "$GAMEDIR/nxextract-ui" "$GAMEDIR/sims3_s3e_loader"; do
+for f in "$GAMEDIR/r36s.run.sh" "$GAMEDIR/run-extractor.sh" "$GAMEDIR/nxextract/run-extractor.sh" "$GAMEDIR/nxextract/nxextract-runtime-env.sh" "$GAMEDIR/nxextract/nxextract-ui" "$GAMEDIR/sims3_s3e_loader"; do
   [ -f "$f" ] && chmod +x "$f" 2>/dev/null || true
 done
 if [ ! -s "$PAYLOAD" ]; then
   echo "[runtime] payload ausente; iniciando NXExtract."
   [ -f "$GAMEDIR/extractor.json" ] || { echo "[ERROR] extractor.json não encontrado."; exit 72; }
   [ -x "$GAMEDIR/run-extractor.sh" ] || { echo "[ERROR] run-extractor.sh não encontrado/executável."; exit 72; }
-  [ -f "$GAMEDIR/nxextract.py" ] || { echo "[ERROR] nxextract.py não encontrado."; exit 72; }
-  [ -f "$GAMEDIR/nxextract-runtime-env.sh" ] || { echo "[ERROR] nxextract-runtime-env.sh não encontrado."; exit 72; }
-  [ -f "$GAMEDIR/nxextract-ui" ] || { echo "[ERROR] nxextract-ui não encontrado."; exit 72; }
+  [ -f "$GAMEDIR/nxextract/nxextract.py" ] || { echo "[ERROR] nxextract/nxextract.py não encontrado."; exit 72; }
+  [ -f "$GAMEDIR/nxextract/nxextract-runtime-env.sh" ] || { echo "[ERROR] nxextract/nxextract-runtime-env.sh não encontrado."; exit 72; }
+  if [ ! -f "$GAMEDIR/nxextract/nxextract-ui" ]; then
+    echo "[runtime] aviso: nxextract-ui ainda não está presente; o motor poderá usar fallback headless."
+  fi
   NX_FIRMWARE_LIBS=""
   for d in "/opt/system/Tools/PortMaster/libs" "/opt/tools/PortMaster/libs" "/roms/ports/PortMaster/libs" "/roms/ports/PortMaster/runtime" "/storage/roms/ports/PortMaster/libs" "/usr/lib" "/lib"; do
     if [ -d "$d" ]; then

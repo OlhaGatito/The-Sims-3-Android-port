@@ -19,12 +19,12 @@ fi
 
 cd "$GAMEDIR" || exit 1
 
-# O runtime único contém o gate NXExtract e a execução do loader.
-if [ ! -f "$GAMEDIR/run.sh" ]; then
-  echo "[ERROR] run.sh não encontrado em $GAMEDIR"
+# O runtime RK3326/R36S contém o gate NXExtract e a execução do loader.
+if [ ! -f "$GAMEDIR/r36s.run.sh" ]; then
+  echo "[ERROR] r36s.run.sh não encontrado em $GAMEDIR"
   exit 1
 fi
 
-chmod +x "$GAMEDIR/run.sh" 2>/dev/null || true
+chmod +x "$GAMEDIR/r36s.run.sh" 2>/dev/null || true
 
-exec "$GAMEDIR/run.sh"
+exec "$GAMEDIR/r36s.run.sh"

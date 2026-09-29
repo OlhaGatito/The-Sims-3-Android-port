@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "sims3-s3e",
-  "version": "1",
+  "version": "2",
   "title": "The Sims 3 S3E",
   "abi_order": [
     "armeabi"
@@ -39,6 +39,21 @@
       },
       "destination": "game/The Sims 3.s3e",
       "required": true
+    },
+    {
+      "id": "sims3-assets",
+      "source": {
+        "kind": "entries",
+        "patterns": [
+          "assets/**"
+        ],
+        "scopes": [
+          "apk"
+        ],
+        "strip_prefix": "assets"
+      },
+      "destination": "game/assets",
+      "required": true
     }
   ],
   "hooks": [
@@ -61,6 +76,7 @@
   ],
   "commit": [
     "game/The Sims 3.s3e",
-    "game/game.s3e.unpacked"
+    "game/game.s3e.unpacked",
+    "game/assets"
   ]
 }

@@ -7,7 +7,6 @@ obb/
 
 # Local game data
 game/*
-!game/*.unpacked
 
 # Build/intermediate files
 *.o

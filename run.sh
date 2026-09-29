@@ -3,7 +3,8 @@
 # Foco: PortMaster + ARM32 hard-float; perfil gráfico/áudio negociado pelo firmware;
 # NXExtract antes do loader; ambiente gráfico/áudio fornecido pelo firmware.
 
-set -u
+set +u
+# O control.txt do PortMaster pode consultar variáveis ausentes; manter o shell tolerante.
 GAMEDIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)" || exit 1
 cd "$GAMEDIR" || exit 1
 LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
@@ -13,6 +14,71 @@ exec >>"$LOG" 2>&1
 
 echo "=== The Sims 3 / RK3326 runtime ==="
 echo "[runtime] gamedir=$GAMEDIR"
+# PortMaster/CFW: usar o mesmo handoff leve do NextOS.
+# O frontend continua dono do ciclo de vida; este runtime apenas prepara e executa o jogo.
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+controlfolder=""
+for _cf in /opt/system/Tools/PortMaster /opt/tools/PortMaster \
+           "$XDG_DATA_HOME/PortMaster" /roms/ports/PortMaster \
+           /storage/.config/PortMaster; do
+  [ -d "$_cf" ] && { controlfolder="$_cf"; break; }
+done
+: "${controlfolder:=/storage/.config/PortMaster}"
+if [ -f "$controlfolder/control.txt" ]; then
+  . "$controlfolder/control.txt"
+  case "${CFW_NAME:-}" in
+    ''|*[!A-Za-z0-9._-]*) ;;
+    *) [ -f "$controlfolder/mod_${CFW_NAME}.txt" ] && . "$controlfolder/mod_${CFW_NAME}.txt" ;;
+  esac
+  command -v get_controls >/dev/null 2>&1 && get_controls || true
+fi
+: "${ESUDO:=}"
+printf '[runtime] cfw=%s controlfolder=%s\n' "${CFW_NAME:-unknown}" "$controlfolder"
+
+# Bibliotecas do firmware/PortMaster primeiro. O loader S3E abre suas dependências
+# próprias explicitamente; não devemos interpor libs Android sobre a libc do CFW.
+LD_PARTS="/usr/lib32:/lib32:/usr/lib:/lib"
+[ -n "$controlfolder" ] && LD_PARTS="$controlfolder/libs:$controlfolder/libs.armhf:$LD_PARTS"
+[ -d "$GAMEDIR/libs" ] && LD_PARTS="$GAMEDIR/libs:$LD_PARTS"
+export LD_LIBRARY_PATH="$LD_PARTS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+printf '[runtime] LD_LIBRARY_PATH=%s\n' "$LD_LIBRARY_PATH"
+
+# Política de áudio adaptada do NextOS:
+# AUDIO_DRIVER vazio = SDL escolhe o backend disponível no firmware.
+# AUDIO_DRIVER=alsa/pulse/pipewire pode ser usado para diagnóstico.
+case "${AUDIO_DRIVER:-}" in
+  '')
+    unset SDL_AUDIODRIVER 2>/dev/null || true
+    echo '[audio] backend automático: SDL/firmware'
+    ;;
+  alsa)
+    export SDL_AUDIODRIVER=alsa
+    echo '[audio] AUDIO_DRIVER=alsa -> SDL_AUDIODRIVER=alsa'
+    ;;
+  pulse)
+    export SDL_AUDIODRIVER=pulseaudio
+    echo '[audio] AUDIO_DRIVER=pulse -> SDL_AUDIODRIVER=pulseaudio'
+    ;;
+  pipewire)
+    export SDL_AUDIODRIVER=pipewire
+    echo '[audio] AUDIO_DRIVER=pipewire -> SDL_AUDIODRIVER=pipewire'
+    ;;
+  *)
+    echo '[audio] ERRO: AUDIO_DRIVER deve ser vazio, alsa, pulse ou pipewire'
+    exit 76
+    ;;
+esac
+if [ -d /dev/snd ]; then
+  echo '[audio] /dev/snd presente'
+  ls -la /dev/snd 2>/dev/null || true
+else
+  echo '[audio] AVISO: /dev/snd ausente'
+fi
+if [ -r /proc/asound/cards ]; then
+  echo '[audio] ALSA cards:'
+  cat /proc/asound/cards 2>/dev/null || true
+fi
+
 echo "[runtime] cfw=${CFW_NAME:-unknown}"
 echo "[runtime] arch=$(uname -m 2>/dev/null || echo unknown)"
 echo "[runtime] kernel=$(uname -r 2>/dev/null || echo unknown)"
@@ -134,6 +200,13 @@ for required in "$GAMEDIR/game/dlc.dz" "$GAMEDIR/game/assets/LowRes/res.dz"; do
     echo "[WARN] game data missing: $required"
   fi
 done
+
+
+# Handoff PortMaster: não gerencia frontend nem mata processos.
+# Isso fica no PortMaster/CFW, como no runtime oficial NextOS.
+if command -v pm_platform_helper >/dev/null 2>&1; then
+  pm_platform_helper "$GAMEDIR/sims3_s3e_loader" >/dev/null 2>&1 || true
+fi
 
 echo "[runtime] starting ARM32 S3E loader"
 "$GAMEDIR/sims3_s3e_loader" --run --root "$GAMEDIR/game" "$PAYLOAD"

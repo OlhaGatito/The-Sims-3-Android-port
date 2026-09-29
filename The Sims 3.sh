@@ -23,11 +23,11 @@ SELF="$(resolve_self "$0" 2>/dev/null || true)"
 [ -n "$SELF" ] || SELF="$0"
 SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SELF")" 2>/dev/null && pwd -P)" || exit 1
 
-LOGDIR="\${SIMS3_LOG_DIR:-$SCRIPT_DIR/logs}"
+LOGDIR="${SIMS3_LOG_DIR:-$SCRIPT_DIR/logs}"
 mkdir -p "$LOGDIR" 2>/dev/null || true
-LOG="\${SIMS3_LAUNCHER_LOG:-$LOGDIR/The Sims 3 launcher.log}"
+LOG="${SIMS3_LAUNCHER_LOG:-$LOGDIR/The Sims 3 launcher.log}"
 if ! touch "$LOG" 2>/dev/null; then
-  LOG="\${TMPDIR:-/tmp}/The Sims 3 launcher.log"
+  LOG="${TMPDIR:-/tmp}/The Sims 3 launcher.log"
   touch "$LOG" 2>/dev/null || true
 fi
 exec >>"$LOG" 2>&1
@@ -40,7 +40,7 @@ echo "[launcher] script_dir=$SCRIPT_DIR"
 echo "[launcher] pwd=$(pwd 2>/dev/null || true)"
 echo "[launcher] args=$*"
 
-if [ -n "\${SIMS3_GAME_DIR:-}" ] && [ -f "\${SIMS3_GAME_DIR:-}/run.sh" ]; then
+if [ -n "${SIMS3_GAME_DIR:-}" ] && [ -f "${SIMS3_GAME_DIR:-}/run.sh" ]; then
   GAMEDIR="$SIMS3_GAME_DIR"
 else
   GAMEDIR=""
@@ -66,7 +66,7 @@ else
       ;;
   esac
 
-  for candidate in "\${CANDIDATES[@]}"; do
+  for candidate in "${CANDIDATES[@]}"; do
     if [ -f "$candidate/run.sh" ]; then
       GAMEDIR="$(cd -P -- "$candidate" 2>/dev/null && pwd -P)" || GAMEDIR="$candidate"
       break
@@ -74,7 +74,7 @@ else
   done
 fi
 
-echo "[launcher] gamedir=\${GAMEDIR:-<não encontrado>}"
+echo "[launcher] gamedir=${GAMEDIR:-<não encontrado>}"
 
 if [ -z "$GAMEDIR" ]; then
   echo "[ERROR] pasta/runtime do port não encontrado."

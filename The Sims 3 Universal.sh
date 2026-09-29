@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The Sims 3 — launcher independente de localização.
+# The Sims 3 — launcher independente de localização e runtime RK3326/R36S.
 # Pode ficar em qualquer diretório.
 # Procura sims3 ao lado do launcher e nos layouts comuns do PortMaster.
 # NXExtract é usado somente através do runner oficial do port.
@@ -47,7 +47,7 @@ echo "[launcher] script=$SCRIPT_DIR"
 echo "[launcher] game=$GAMEDIR"
 cd "$GAMEDIR" || exit 1
 
-for f in run.sh run-extractor.sh nxextract-runtime-env.sh nxextract-ui nxextract.py sims3_s3e_loader; do
+for f in r36s.run.sh run-extractor.sh nxextract-runtime-env.sh nxextract-ui nxextract.py sims3_s3e_loader; do
   [ -f "$f" ] && chmod +x "$f" 2>/dev/null || true
 done
 

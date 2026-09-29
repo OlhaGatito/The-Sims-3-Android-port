@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # The Sims 3 — launcher universal de localização
-#
-# Foco deste arquivo: encontrar a pasta do port em diferentes layouts.
-# O runtime e o NXExtract ficam exclusivamente em r36s.run.sh.
+# Compatibilidade auxiliar; a entrada normal do PortMaster é "The Sims 3.sh".
 
 set -u
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" 2>/dev/null && pwd -P)" || exit 1
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0" 2>/dev/null)" && pwd -P)" || exit 1
 LOGDIR_FALLBACK="${SIMS3_LOG_DIR:-$SCRIPT_DIR/logs}"
 mkdir -p "$LOGDIR_FALLBACK" 2>/dev/null || true
 LOG_FALLBACK="$LOGDIR_FALLBACK/The Sims 3 Universal.log"
+exec >>"$LOG_FALLBACK" 2>&1
+
+echo "=== The Sims 3 / universal launcher ==="
+echo "[launcher] script=$SCRIPT_DIR"
+echo "[launcher] date=$(date 2>/dev/null || true)"
 
 find_game_dir() {
   if [ -n "${SIMS3_GAME_DIR:-}" ] && [ -d "$SIMS3_GAME_DIR" ]; then
@@ -30,18 +33,17 @@ find_game_dir() {
 }
 
 GAMEDIR="$(find_game_dir)" || {
-  echo "[ERROR] pasta do The Sims 3 não encontrada." >"$LOG_FALLBACK"
-  echo "[INFO] use SIMS3_GAME_DIR=/caminho/para/sims3." >>"$LOG_FALLBACK"
+  echo "[ERROR] pasta do The Sims 3 não encontrada."
+  echo "[INFO] use SIMS3_GAME_DIR=/caminho/para/sims3."
   exit 1
 }
 
+echo "[launcher] game=$GAMEDIR"
 LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
 mkdir -p "$LOGDIR" || exit 1
-LOG="${SIMS3_LOG:-$LOGDIR/The Sims 3 Universal.log}"
+LOG="$LOGDIR/The Sims 3 Universal.log"
 exec >>"$LOG" 2>&1
-echo "=== The Sims 3 / universal launcher ==="
-echo "[launcher] script=$SCRIPT_DIR"
-echo "[launcher] game=$GAMEDIR"
+echo "[launcher] log=$LOG"
 
 if [ ! -f "$GAMEDIR/r36s.run.sh" ]; then
   echo "[ERROR] r36s.run.sh não encontrado em $GAMEDIR"
@@ -50,4 +52,5 @@ fi
 
 chmod +x "$GAMEDIR/r36s.run.sh" 2>/dev/null || true
 export SIMS3_GAME_DIR="$GAMEDIR"
+echo "[launcher] iniciando r36s.run.sh"
 exec "$GAMEDIR/r36s.run.sh"

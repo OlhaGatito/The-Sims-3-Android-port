@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "id": "sims3-s3e",
+  "version": "1",
+  "title": "The Sims 3 S3E",
+  "abi_order": [
+    "armeabi"
+  ],
+  "input": {
+    "search_dirs": [
+      "gamedata",
+      "."
+    ],
+    "prefer_first_nonempty": true,
+    "sniff_all_in_primary": true,
+    "extensions": [
+      ".apk",
+      ".apkm",
+      ".apks",
+      ".xapk",
+      ".zip",
+      ".obb"
+    ],
+    "packages": [
+      "com.eamobile.sims3_row_qwf"
+    ]
+  },
+  "extract": [
+    {
+      "id": "sims3-s3e",
+      "source": {
+        "kind": "entry",
+        "patterns": [
+          "assets/The Sims 3.s3e"
+        ],
+        "scopes": [
+          "apk"
+        ]
+      },
+      "destination": "game/The Sims 3.s3e",
+      "required": true
+    }
+  ],
+  "hooks": [
+    {
+      "id": "unpack-s3e",
+      "argv": [
+        "bash",
+        "{recipe_dir}/hooks/unpack-s3e.sh"
+      ],
+      "cwd": "{game_dir}",
+      "checkpoint": [
+        {
+          "path": "game/game.s3e.unpacked",
+          "type": "file",
+          "min_size": 1048576,
+          "magic_hex": "58453355"
+        }
+      ]
+    }
+  ],
+  "commit": [
+    "game/The Sims 3.s3e",
+    "game/game.s3e.unpacked"
+  ]
+}

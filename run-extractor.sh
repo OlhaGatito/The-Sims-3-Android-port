@@ -32,4 +32,9 @@ ENGINE_DIR="$SCRIPT_DIR/nxextract"
 export NXEXTRACT_GAME_DIR="$GAME_DIR"
 export NXEXTRACT_RECIPE="$RECIPE"
 
-exec bash "$ENGINE_DIR/run-extractor.sh" "$@"
+exec bash "$ENGINE_DIR/nxextract-runtime-env.sh" \
+  python3 "$ENGINE_DIR/nxextract.py" install \
+  --recipe "$RECIPE" \
+  --game-dir "$GAME_DIR" \
+  --ui auto \
+  "$@"

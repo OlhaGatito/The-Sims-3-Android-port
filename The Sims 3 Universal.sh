@@ -45,12 +45,12 @@ LOG="$LOGDIR/The Sims 3 Universal.log"
 exec >>"$LOG" 2>&1
 echo "[launcher] log=$LOG"
 
-if [ ! -f "$GAMEDIR/r36s.run.sh" ]; then
-  echo "[ERROR] r36s.run.sh não encontrado em $GAMEDIR"
+if [ ! -f "$GAMEDIR/run.sh" ]; then
+  echo "[ERROR] run.sh não encontrado em $GAMEDIR"
   exit 75
 fi
 
-chmod +x "$GAMEDIR/r36s.run.sh" 2>/dev/null || true
+chmod +x "$GAMEDIR/run.sh" 2>/dev/null || true
 export SIMS3_GAME_DIR="$GAMEDIR"
-echo "[launcher] iniciando r36s.run.sh"
-exec "$GAMEDIR/r36s.run.sh"
+echo "[launcher] iniciando run.sh"
+exec "$GAMEDIR/run.sh"

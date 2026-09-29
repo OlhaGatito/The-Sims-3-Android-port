@@ -4,7 +4,7 @@
 # NXExtract antes do loader; ambiente gráfico/áudio fornecido pelo firmware.
 
 set -u
-GAMEDIR="$(cd "$(dirname "$0" 2>/dev/null && pwd -P")" 2>/dev/null)" || exit 1
+GAMEDIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)" || exit 1
 cd "$GAMEDIR" || exit 1
 LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
 mkdir -p "$LOGDIR" || exit 1

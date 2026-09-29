@@ -6,7 +6,9 @@
 set -u
 GAMEDIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)" || exit 1
 cd "$GAMEDIR" || exit 1
-LOG="${SIMS3_LOG:-$GAMEDIR/run.log}"
+LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
+mkdir -p "$LOGDIR" || exit 1
+LOG="${SIMS3_LOG:-$LOGDIR/r36s.run.log}"
 exec >>"$LOG" 2>&1
 echo "=== The Sims 3 / RK3326 runtime ==="
 echo "[runtime] gamedir=$GAMEDIR"
@@ -62,5 +64,21 @@ if [ -z "${SIMS3_W:-}" ] || [ -z "${SIMS3_H:-}" ]; then
 fi
 export SIMS3_W SIMS3_H
 echo "[runtime] surface=${SIMS3_W}x${SIMS3_H}"
+echo "[runtime] logs=$LOGDIR"
+echo "[runtime] payload=$PAYLOAD"
+if [ -d "$GAMEDIR/game" ]; then
+  echo "[runtime] game directory listing:"
+  ls -la "$GAMEDIR/game" 2>/dev/null || true
+  for required in "$GAMEDIR/game/dlc.dz" "$GAMEDIR/game/LowRes/res.dz"; do
+    if [ -f "$required" ]; then
+      echo "[runtime] data OK: $required"
+    else
+      echo "[WARN] game data missing: $required"
+    fi
+  done
+fi
 echo "[runtime] starting ARM32 S3E loader"
-exec "$GAMEDIR/sims3_s3e_loader" --run --root "$GAMEDIR/game" "$PAYLOAD"
+"$GAMEDIR/sims3_s3e_loader" --run --root "$GAMEDIR/game" "$PAYLOAD"
+status=$?
+echo "[runtime] loader exit=$status"
+exit "$status"

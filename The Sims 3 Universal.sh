@@ -6,7 +6,9 @@
 
 set -u
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" 2>/dev/null && pwd -P)" || exit 1
-LOG_FALLBACK="$SCRIPT_DIR/The Sims 3.log"
+LOGDIR_FALLBACK="${SIMS3_LOG_DIR:-$SCRIPT_DIR/logs}"
+mkdir -p "$LOGDIR_FALLBACK" 2>/dev/null || true
+LOG_FALLBACK="$LOGDIR_FALLBACK/The Sims 3 Universal.log"
 
 find_game_dir() {
   if [ -n "${SIMS3_GAME_DIR:-}" ] && [ -d "$SIMS3_GAME_DIR" ]; then
@@ -33,7 +35,9 @@ GAMEDIR="$(find_game_dir)" || {
   exit 1
 }
 
-LOG="$GAMEDIR/run.log"
+LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
+mkdir -p "$LOGDIR" || exit 1
+LOG="${SIMS3_LOG:-$LOGDIR/The Sims 3 Universal.log}"
 exec >>"$LOG" 2>&1
 echo "=== The Sims 3 / universal launcher ==="
 echo "[launcher] script=$SCRIPT_DIR"

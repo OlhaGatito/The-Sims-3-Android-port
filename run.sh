@@ -25,6 +25,15 @@ echo "[runtime] invoked=$0"
 echo "[runtime] pwd=$(pwd 2>/dev/null || true)"
 echo "[runtime] args=$*"
 
+# 1.5) Detecção automática de áudio/vídeo/GPU.
+COMPAT="$GAMEDIR/port_compat.sh"
+if [ -f "$COMPAT" ]; then
+  . "$COMPAT"
+  port_detect_runtime
+else
+  echo "[WARN] port_compat.sh não encontrado; mantendo autodetecção do sistema"
+fi
+
 # 2) PortMaster preamble.
 # A lista inclui os caminhos oficiais e os layouts encontrados em muOS/Anbernic.
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -83,43 +92,12 @@ done
 export LD_LIBRARY_PATH="$LD_PARTS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 echo "[runtime] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 
-# 4) Áudio: deixar SDL/firmware negociar por padrão.
-# Para diagnóstico, SIMS3_AUDIO_DRIVER pode ser alsa, pulseaudio ou pipewire.
-# AUDIO_DRIVER também é aceito como compatibilidade com a convenção NextOS.
-AUDIO_SEL="${SIMS3_AUDIO_DRIVER:-${AUDIO_DRIVER:-}}"
-case "$AUDIO_SEL" in
-  "")
-    unset SDL_AUDIODRIVER 2>/dev/null || true
-    echo "[audio] backend automático: SDL/firmware"
-    ;;
-  alsa)
-    export SDL_AUDIODRIVER=alsa
-    echo "[audio] driver=alsa"
-    ;;
-  pulse|pulseaudio)
-    export SDL_AUDIODRIVER=pulseaudio
-    echo "[audio] driver=pulseaudio"
-    ;;
-  pipewire)
-    export SDL_AUDIODRIVER=pipewire
-    echo "[audio] driver=pipewire"
-    ;;
-  *)
-    echo "[audio] ERRO: driver inválido: $AUDIO_SEL"
-    exit 76
-    ;;
-esac
-
-if [ -d /dev/snd ]; then
-  echo "[audio] /dev/snd presente"
-  ls -la /dev/snd 2>/dev/null || true
-else
-  echo "[audio] AVISO: /dev/snd ausente"
-fi
-if [ -r /proc/asound/cards ]; then
-  echo "[audio] ALSA cards:"
-  cat /proc/asound/cards 2>/dev/null || true
-fi
+# 4) Áudio/vídeo.
+# port_compat.sh escolhe um backend disponível somente quando necessário.
+# ALSA é preferido quando /dev/snd existe; PipeWire não é obrigatório.
+echo "[audio] backend=\${PORT_AUDIO_BACKEND:-unknown} driver=\${SDL_AUDIODRIVER:-auto}"
+echo "[video] backend=\${PORT_VIDEO_BACKEND:-unknown} driver=\${SDL_VIDEODRIVER:-auto}"
+echo "[video] gpu=\${PORT_GPU_BACKEND:-unknown}"
 
 # 5) Ambiente do aparelho.
 if [ -f /proc/device-tree/compatible ]; then

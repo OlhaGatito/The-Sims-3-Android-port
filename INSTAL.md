@@ -2,7 +2,7 @@
 
 ## Versão do APK
 
-Use a versão **The Sims 3 Android 1.7.11 (APK Award)**, correspondente ao APK utilizado durante o desenvolvimento deste port.
+Use a versão **The Sims 3 Android 1.7.xx (APK Award)**, correspondente ao APK utilizado durante o desenvolvimento deste port.
 
 Não use outra versão sem validar novamente o executável Marmalade/S3E e os dados correspondentes.
 

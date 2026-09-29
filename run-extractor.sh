@@ -6,6 +6,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 GAME_DIR="${NXEXTRACT_GAME_DIR:-$SCRIPT_DIR}"
 RECIPE="${NXEXTRACT_RECIPE:-$GAME_DIR/extractor.json}"
+LOGDIR="${SIMS3_LOG_DIR:-$GAME_DIR/logs}"
+mkdir -p "$LOGDIR" || exit 1
+LOG="${SIMS3_EXTRACTOR_LOG:-$LOGDIR/run-extractor.log}"
+exec >>"$LOG" 2>&1
+echo "=== The Sims 3 / NXExtract launcher ==="
+echo "[extractor] game_dir=$GAME_DIR"
+echo "[extractor] recipe=$RECIPE"
+echo "[extractor] log=$LOG"
 ENGINE_DIR="$SCRIPT_DIR/nxextract"
 
 [ -d "$ENGINE_DIR" ] || {

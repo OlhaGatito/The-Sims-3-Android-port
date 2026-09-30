@@ -2,8 +2,10 @@
 #include "s3e_image.h"
 #include "s3e_host_internal.h"
 #include "nxmix.h"
+#include "LzmaDec.h"
 
 #include <stdbool.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <signal.h>
@@ -139,6 +141,156 @@ static void describe_addr(const char *label, uintptr_t addr) {
 
 static void usage(const char *argv0) {
     fprintf(stderr, "usage: %s [--run] [--root DIR] IMAGE.s3e.unpacked\n", argv0);
+    fprintf(stderr, "       %s --unpack-s3e INPUT.s3e OUTPUT.xe3u\n", argv0);
+}
+
+#define S3E_LZMA_HEADER_SIZE 13u
+#define S3E_LZMA_MAX_INPUT_SIZE (64u * 1024u * 1024u)
+#define S3E_LZMA_MAX_OUTPUT_SIZE (256u * 1024u * 1024u)
+
+static void *s3e_lzma_alloc(ISzAllocPtr allocator, size_t size) {
+    (void)allocator;
+    return malloc(size);
+}
+
+static void s3e_lzma_free(ISzAllocPtr allocator, void *address) {
+    (void)allocator;
+    free(address);
+}
+
+static const ISzAlloc s3e_lzma_allocator = {
+    s3e_lzma_alloc,
+    s3e_lzma_free
+};
+
+static int unpack_s3e_file(const char *source_path, const char *destination_path) {
+    if (strcmp(source_path, destination_path) == 0) {
+        fprintf(stderr, "[unpack] input and output paths must differ\n");
+        return 2;
+    }
+
+    FILE *source_file = fopen(source_path, "rb");
+    if (!source_file) {
+        perror("[unpack] cannot open S3E input");
+        return 1;
+    }
+    if (fseek(source_file, 0, SEEK_END) != 0) {
+        perror("[unpack] cannot seek S3E input");
+        fclose(source_file);
+        return 1;
+    }
+
+    long source_length_long = ftell(source_file);
+    if (source_length_long < (long)S3E_LZMA_HEADER_SIZE ||
+        (unsigned long)source_length_long > S3E_LZMA_MAX_INPUT_SIZE) {
+        fprintf(stderr, "[unpack] invalid or oversized LZMA-alone input (%ld bytes)\n",
+                source_length_long);
+        fclose(source_file);
+        return 1;
+    }
+    if (fseek(source_file, 0, SEEK_SET) != 0) {
+        perror("[unpack] cannot rewind S3E input");
+        fclose(source_file);
+        return 1;
+    }
+
+    size_t source_length = (size_t)source_length_long;
+    uint8_t *source = (uint8_t *)malloc(source_length);
+    if (!source) {
+        fprintf(stderr, "[unpack] out of memory reading S3E input\n");
+        fclose(source_file);
+        return 1;
+    }
+    if (fread(source, 1, source_length, source_file) != source_length) {
+        fprintf(stderr, "[unpack] could not read complete S3E input\n");
+        free(source);
+        fclose(source_file);
+        return 1;
+    }
+    fclose(source_file);
+
+    uint64_t expected_length = 0;
+    for (unsigned i = 0; i < 8; ++i) {
+        expected_length |= (uint64_t)source[5 + i] << (8u * i);
+    }
+    if (expected_length < 4 || expected_length > S3E_LZMA_MAX_OUTPUT_SIZE) {
+        fprintf(stderr, "[unpack] invalid or oversized uncompressed length (%llu bytes)\n",
+                (unsigned long long)expected_length);
+        free(source);
+        return 1;
+    }
+
+    size_t output_length = (size_t)expected_length;
+    uint8_t *output = (uint8_t *)malloc(output_length);
+    if (!output) {
+        fprintf(stderr, "[unpack] out of memory allocating %zu-byte output\n", output_length);
+        free(source);
+        return 1;
+    }
+
+    SizeT decoded_length = (SizeT)output_length;
+    SizeT compressed_length = (SizeT)(source_length - S3E_LZMA_HEADER_SIZE);
+    ELzmaStatus decode_status = LZMA_STATUS_NOT_SPECIFIED;
+    SRes decode_result = LzmaDecode(output, &decoded_length,
+                                    source + S3E_LZMA_HEADER_SIZE, &compressed_length,
+                                    source, 5, LZMA_FINISH_ANY, &decode_status,
+                                    &s3e_lzma_allocator);
+    free(source);
+
+    if (decode_result != SZ_OK || decoded_length != output_length) {
+        fprintf(stderr,
+                "[unpack] LZMA SDK decode failed: result=%d decoded=%lu expected=%zu status=%d\n",
+                (int)decode_result, (unsigned long)decoded_length, output_length,
+                (int)decode_status);
+        free(output);
+        return 1;
+    }
+    if (memcmp(output, "XE3U", 4) != 0) {
+        fprintf(stderr, "[unpack] decoded payload does not have the XE3U signature\n");
+        free(output);
+        return 1;
+    }
+
+    char temporary_path[4096];
+    int temporary_length = snprintf(temporary_path, sizeof(temporary_path),
+                                    "%s.tmp.%ld", destination_path, (long)getpid());
+    if (temporary_length < 0 || (size_t)temporary_length >= sizeof(temporary_path)) {
+        fprintf(stderr, "[unpack] destination path is too long\n");
+        free(output);
+        return 1;
+    }
+
+    FILE *destination_file = fopen(temporary_path, "wb");
+    if (!destination_file) {
+        perror("[unpack] cannot create temporary output");
+        free(output);
+        return 1;
+    }
+    if (fwrite(output, 1, output_length, destination_file) != output_length ||
+        fflush(destination_file) != 0) {
+        perror("[unpack] could not write complete output");
+        fclose(destination_file);
+        unlink(temporary_path);
+        free(output);
+        return 1;
+    }
+    if (fclose(destination_file) != 0) {
+        perror("[unpack] could not close output");
+        unlink(temporary_path);
+        free(output);
+        return 1;
+    }
+    if (rename(temporary_path, destination_path) != 0) {
+        perror("[unpack] could not publish decoded output");
+        unlink(temporary_path);
+        free(output);
+        return 1;
+    }
+
+    fprintf(stderr, "[unpack] LZMA SDK decoded %zu -> %zu bytes; XE3U verified\n",
+            source_length, output_length);
+    free(output);
+    return 0;
 }
 
 static void crash_handler(int sig, siginfo_t *info, void *context) {
@@ -291,6 +443,10 @@ static void install_terminate_handlers(void) {
 }
 
 int main(int argc, char **argv) {
+    if (argc == 4 && strcmp(argv[1], "--unpack-s3e") == 0) {
+        return unpack_s3e_file(argv[2], argv[3]);
+    }
+
     bool run = false;
     const char *root = NULL;
     const char *image_path = NULL;

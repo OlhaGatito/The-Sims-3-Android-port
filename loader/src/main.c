@@ -209,6 +209,17 @@ static int unpack_s3e_file(const char *source_path, const char *destination_path
     }
     fclose(source_file);
 
+    uint32_t dictionary_size = (uint32_t)source[1] |
+                               ((uint32_t)source[2] << 8) |
+                               ((uint32_t)source[3] << 16) |
+                               ((uint32_t)source[4] << 24);
+    if (dictionary_size > S3E_LZMA_MAX_OUTPUT_SIZE) {
+        fprintf(stderr, "[unpack] invalid or oversized LZMA dictionary (%u bytes)\\n",
+                dictionary_size);
+        free(source);
+        return 1;
+    }
+
     uint64_t expected_length = 0;
     for (unsigned i = 0; i < 8; ++i) {
         expected_length |= (uint64_t)source[5 + i] << (8u * i);
@@ -231,6 +242,8 @@ static int unpack_s3e_file(const char *source_path, const char *destination_path
     SizeT decoded_length = (SizeT)output_length;
     SizeT compressed_length = (SizeT)(source_length - S3E_LZMA_HEADER_SIZE);
     ELzmaStatus decode_status = LZMA_STATUS_NOT_SPECIFIED;
+    /* The LZMA-alone header supplies the exact output size. FINISH_ANY lets
+       the bundled SDK stop at that size without requiring a stream end marker. */
     SRes decode_result = LzmaDecode(output, &decoded_length,
                                     source + S3E_LZMA_HEADER_SIZE, &compressed_length,
                                     source, 5, LZMA_FINISH_ANY, &decode_status,

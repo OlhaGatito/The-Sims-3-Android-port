@@ -45,10 +45,6 @@ command -v "$PYTHON_BIN" >/dev/null 2>&1 || {
   printf '[NXExtract] Python 3 not found: %s\n' "$PYTHON_BIN" >&2
   exit 69
 }
-command -v xz >/dev/null 2>&1 || {
-  printf '[NXExtract] xz command not found\n' >&2
-  exit 69
-}
 
 exec bash "$ENGINE_DIR/nxextract-runtime-env.sh" \
   "$PYTHON_BIN" "$ENGINE_DIR/nxextract.py" install \

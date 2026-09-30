@@ -31,7 +31,7 @@ log_source_diagnostics() {
     echo "[diagnostics] xz_path=${XZ_PATH:-unavailable}"
     XZ_VERSION="$(xz --version 2>&1 | sed -n '1p' || true)"
     echo "[diagnostics] xz_version=${XZ_VERSION:-unavailable}"
-    echo "[diagnostics] xz_command=xz --format=lzma -d -c <source>"
+    echo "[diagnostics] xz_command=xz --single-stream --format=lzma -d -c <source>"
     if [ -f "$SRC" ]; then
         SOURCE_SIZE="$(wc -c < "$SRC" 2>/dev/null | tr -d '[:space:]' || true)"
         SOURCE_HEADER="$(od -An -tx1 -N13 "$SRC" 2>/dev/null | tr -d ' \n' || true)"
@@ -67,7 +67,7 @@ fi
 mkdir -p "$STAGE/game"
 rm -f "$DST"
 
-if xz --format=lzma -d -c "$SRC" > "$DST"; then
+if xz --single-stream --format=lzma -d -c "$SRC" > "$DST"; then
     :
 else
     XZ_EXIT=$?

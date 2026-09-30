@@ -43,7 +43,7 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     }
     echo "[setup] game data is incomplete; starting Gatito Extractor UI"
     GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
-    if [ -x "$GATITO_UI" ]; then
+    if [ -f "$GATITO_UI" ]; then
         bash "$GATITO_UI"
     else
         bash "$EXTRACTOR"

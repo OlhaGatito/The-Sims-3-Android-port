@@ -425,7 +425,9 @@ static void install_crash_handlers(void) {
     /* The Sims 3 (NextOS): sem pilha alternativa, um SIGSEGV por ESTOURO DE
        PILHA mata o processo SEM imprimir nada — o handler nao tem onde rodar e
        o log fica vazio. Log vazio nao e' ausencia de erro. */
-    /* glibc exposes SIGSTKSZ as a runtime value with _GNU_SOURCE; a fixed\n       64 KiB buffer keeps this static alternate signal stack portable. */\n    static char altstack[64u * 1024u];
+    /* glibc exposes SIGSTKSZ as a runtime value with _GNU_SOURCE; a fixed
+       64 KiB buffer keeps this static alternate signal stack portable. */
+    static char altstack[64u * 1024u];
     stack_t ss = {.ss_sp = altstack, .ss_size = sizeof(altstack), .ss_flags = 0};
     sigaltstack(&ss, NULL);
 

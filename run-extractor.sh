@@ -15,6 +15,7 @@ echo "[extractor] game_dir=$GAME_DIR"
 echo "[extractor] recipe=$RECIPE"
 echo "[extractor] log=$LOG"
 ENGINE_DIR="$SCRIPT_DIR/nxextract"
+PYTHON_BIN="${NXEXTRACT_PYTHON:-python3}"
 
 [ -d "$ENGINE_DIR" ] || {
   printf '[NXExtract] diretório do motor não encontrado: %s\n' "$ENGINE_DIR" >&2
@@ -40,8 +41,17 @@ ENGINE_DIR="$SCRIPT_DIR/nxextract"
 export NXEXTRACT_GAME_DIR="$GAME_DIR"
 export NXEXTRACT_RECIPE="$RECIPE"
 
+command -v "$PYTHON_BIN" >/dev/null 2>&1 || {
+  printf '[NXExtract] Python 3 not found: %s\n' "$PYTHON_BIN" >&2
+  exit 69
+}
+command -v xz >/dev/null 2>&1 || {
+  printf '[NXExtract] xz command not found\n' >&2
+  exit 69
+}
+
 exec bash "$ENGINE_DIR/nxextract-runtime-env.sh" \
-  python3 "$ENGINE_DIR/nxextract.py" install \
+  "$PYTHON_BIN" "$ENGINE_DIR/nxextract.py" install \
   --recipe "$RECIPE" \
   --game-dir "$GAME_DIR" \
   --ui auto \

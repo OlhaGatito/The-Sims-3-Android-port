@@ -8,6 +8,8 @@ Pesquisa de porting e loader Linux ARM para a versão Android de **The Sims 3**,
 
 Consulte [`INSTAL.md`](INSTAL.md) para a versão de origem, preparação dos arquivos fornecidos pelo usuário e instalação do port.
 
+Veja também os requisitos por arquitetura e firmware em [COMPATIBILIDADE.md](COMPATIBILIDADE.md).
+
 ## Mapa dos componentes
 
 | Componente | Conteúdo e função |

@@ -1,47 +1,27 @@
-# The Sims 3 — Android Port
+# The Sims 3 — port Android para Linux ARM
 
-Porting research and Linux ARM loader for the Android version of **The Sims 3**.
+Pesquisa de porting e loader Linux ARM para a versão Android de **The Sims 3**, baseada no runtime Marmalade/S3E.
 
-## Instalação
+> **Estado:** o loader ARMv7 hard-float está compilado para o ambiente Linux ARM. Gráficos, áudio, entrada e demais dependências seguem em validação; este repositório não afirma compatibilidade completa nem gameplay confirmado.
 
-As informações sobre a versão do APK, localização do APK, preparação dos arquivos e instalação do port estão em:
+## Instalação e preparação dos dados
 
-[INSTAL.md](INSTAL.md)
+Consulte [`INSTAL.md`](INSTAL.md) para a versão de origem, preparação dos arquivos fornecidos pelo usuário e instalação do port.
 
-## Estado atual
+## Componentes do repositório
 
-O loader ARMv7 hard-float é compilado para o ambiente Linux ARM compatível com o port. Os subsistemas de gráficos, áudio, entrada e demais dependências continuam sendo validados separadamente.
+- `loader/` — código e arquivos do loader Marmalade/S3E.
+- `Makefile` — regras de compilação disponíveis.
+- `The Sims 3.sh` e `The Sims 3 Universal.sh` — launchers do port.
+- `hooks/` — integração e rotinas auxiliares do projeto.
+- `nxextract/` — componente de extração e seus arquivos de integração.
+- `docs/` — documentação técnica e de arquitetura.
+- `extractor.json` — configuração do extrator.
 
-## Public repository scope
+## Dados proprietários
 
-This repository contains only technical artifacts developed for the port:
+O repositório contém artefatos técnicos do port, mas não deve incluir APK, OBB, dados extraídos, assets ou bibliotecas originais, saves ou dumps proprietários. Os dados necessários a testes são fornecidos separadamente pelo usuário e ficam fora do Git.
 
-- source code;
-- loader;
-- build files;
-- launcher scripts;
-- compiled port/loader binaries;
-- permitted technical .unpacked artifacts used by the loader;
-- documentation and configuration.
+## Licença
 
-### Proprietary game data is not included
-
-The repository must never contain:
-
-- APK files;
-- OBB files;
-- extracted APK/OBB game data or assets;
-- original proprietary libraries/assets;
-- saves, dumps or equivalent proprietary content.
-
-Game data required for testing is supplied separately by the user and remains outside the repository.
-
-## Current project
-
-The current loader targets the Marmalade/S3E executable found in the Android release.
-
-Architecture and runtime details are documented as the implementation advances.
-
-## License
-
-See [LICENSE](LICENSE).
+Consulte [LICENSE](LICENSE) para os termos aplicáveis ao código publicado. A licença do código não concede direitos sobre The Sims 3 ou seus materiais proprietários.

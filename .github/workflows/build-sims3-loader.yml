@@ -9,6 +9,13 @@ on:
       - "loader/**"
       - "Makefile"
       - ".github/workflows/build-sims3-loader.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "loader/**"
+      - "Makefile"
+      - ".github/workflows/build-sims3-loader.yml"
 
 permissions:
   contents: write

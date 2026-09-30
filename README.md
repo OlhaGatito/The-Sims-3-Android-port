@@ -10,14 +10,14 @@ Consulte [`INSTAL.md`](INSTAL.md) para a versão de origem, preparação dos arq
 
 ## Mapa dos componentes
 
-| Área | Arquivo ou pasta | Papel no projeto |
-|:--|:--|:--|
-| 🧩 **Loader** | `loader/` | Código e artefatos do loader Marmalade/S3E. |
-| 🛠️ **Build** | `Makefile` | Regras de compilação disponíveis. |
-| 🎮 **Launchers** | `The Sims 3.sh`<br>`The Sims 3 Universal.sh` | Entradas de execução do port. |
-| 🔌 **Integração** | `hooks/` | Rotinas auxiliares e integração do projeto. |
-| 📦 **Extração** | `nxextract/`<br>`extractor.json` | Componente e configuração usados na preparação dos dados. |
-| 📚 **Documentação** | `docs/`<br>`INSTAL.md` | Guias técnicos, arquitetura e instruções de instalação. |
+| Componente | Conteúdo e função |
+|:--|:--|
+| 🧩 **Loader**<br>`loader/` | Código e artefatos do loader Marmalade/S3E. |
+| 🛠️ **Build**<br>`Makefile` | Regras de compilação disponíveis. |
+| 🎮 **Launchers**<br>`The Sims 3.sh`<br>`The Sims 3 Universal.sh` | Entradas de execução do port. |
+| 🔌 **Integração**<br>`hooks/` | Rotinas auxiliares e integração do projeto. |
+| 📦 **Extração**<br>`nxextract/`<br>`extractor.json` | Componente e configuração usados na preparação dos dados. |
+| 📚 **Documentação**<br>`docs/`<br>`INSTAL.md` | Guias técnicos, arquitetura e instruções de instalação. |
 
 ## Dados proprietários
 

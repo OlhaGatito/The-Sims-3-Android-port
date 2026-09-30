@@ -2,7 +2,7 @@
 import subprocess,sys
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-engine=root/"gatito-extract-v2.py"
+engine=root/"gatito-extract-v3.py"
 recipe=root.parent/"extractor.json"
 game=root.parent
 cmd=[sys.executable,str(engine),str(recipe),"--game-dir",str(game)]

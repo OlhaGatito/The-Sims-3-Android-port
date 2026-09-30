@@ -8,15 +8,16 @@ Pesquisa de porting e loader Linux ARM para a versão Android de **The Sims 3**,
 
 Consulte [`INSTAL.md`](INSTAL.md) para a versão de origem, preparação dos arquivos fornecidos pelo usuário e instalação do port.
 
-## Componentes do repositório
+## Mapa dos componentes
 
-- `loader/` — código e arquivos do loader Marmalade/S3E.
-- `Makefile` — regras de compilação disponíveis.
-- `The Sims 3.sh` e `The Sims 3 Universal.sh` — launchers do port.
-- `hooks/` — integração e rotinas auxiliares do projeto.
-- `nxextract/` — componente de extração e seus arquivos de integração.
-- `docs/` — documentação técnica e de arquitetura.
-- `extractor.json` — configuração do extrator.
+| Área | Arquivo ou pasta | Papel no projeto |
+|:--|:--|:--|
+| 🧩 **Loader** | `loader/` | Código e artefatos do loader Marmalade/S3E. |
+| 🛠️ **Build** | `Makefile` | Regras de compilação disponíveis. |
+| 🎮 **Launchers** | `The Sims 3.sh`<br>`The Sims 3 Universal.sh` | Entradas de execução do port. |
+| 🔌 **Integração** | `hooks/` | Rotinas auxiliares e integração do projeto. |
+| 📦 **Extração** | `nxextract/`<br>`extractor.json` | Componente e configuração usados na preparação dos dados. |
+| 📚 **Documentação** | `docs/`<br>`INSTAL.md` | Guias técnicos, arquitetura e instruções de instalação. |
 
 ## Dados proprietários
 

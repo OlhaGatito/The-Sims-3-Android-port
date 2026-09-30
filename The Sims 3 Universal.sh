@@ -53,4 +53,4 @@ fi
 chmod +x "$GAMEDIR/run.sh" 2>/dev/null || true
 export SIMS3_GAME_DIR="$GAMEDIR"
 echo "[launcher] iniciando run.sh"
-exec "$GAMEDIR/run.sh"
+exec bash "$GAMEDIR/run.sh"

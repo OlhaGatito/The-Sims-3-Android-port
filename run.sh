@@ -26,9 +26,32 @@ LOADER="$GAMEDIR/sims3_s3e_loader"
 ASSET_DIR="$GAME_DIR/assets"
 
 [ -f "$LOADER" ] || { echo "[ERROR] loader not found: $LOADER"; exit 1; }
-[ -f "$GAME_IMAGE" ] || { echo "[ERROR] game image not found: $GAME_IMAGE"; exit 1; }
-[ -d "$ASSET_DIR" ] || { echo "[ERROR] assets directory not found: $ASSET_DIR"; exit 1; }
-chmod +x "$LOADER" 2>/dev/null || true
+if [ ! -x "$LOADER" ]; then
+    chmod +x "$LOADER" 2>/dev/null || true
+fi
+[ -x "$LOADER" ] || {
+    echo "[ERROR] loader is not executable: $LOADER"
+    exit 126
+}
+
+# First launch: prepare game data from a user-supplied APK/APKM/APKS/XAPK/OBB.
+if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
+    EXTRACTOR="$GAMEDIR/run-extractor.sh"
+    [ -f "$EXTRACTOR" ] || {
+        echo "[ERROR] game data is missing and extractor was not found: $EXTRACTOR"
+        exit 1
+    }
+    echo "[setup] game data is incomplete; starting NXExtract"
+    bash "$EXTRACTOR"
+    EXTRACT_RC=$?
+    [ "$EXTRACT_RC" -eq 0 ] || {
+        echo "[ERROR] data preparation failed with exit code $EXTRACT_RC"
+        exit "$EXTRACT_RC"
+    }
+fi
+
+[ -f "$GAME_IMAGE" ] || { echo "[ERROR] game image not found after preparation: $GAME_IMAGE"; exit 1; }
+[ -d "$ASSET_DIR" ] || { echo "[ERROR] assets directory not found after preparation: $ASSET_DIR"; exit 1; }
 
 # Resolution comes from PortMaster/CFW when available.
 export SIMS3_W="${SIMS3_W:-${DISPLAY_WIDTH:-640}}"
@@ -71,16 +94,24 @@ if command -v pm_platform_helper >/dev/null 2>&1; then
     pm_platform_helper "$LOADER" || echo "[WARN] pm_platform_helper returned $?"
 fi
 
+GPTOKEYB_PID=""
 if [ -f "$GAMEDIR/sims3.gptk" ] && [ -n "${GPTOKEYB:-}" ]; then
-    "$GPTOKEYB" "$LOADER" -c "$GAMEDIR/sims3.gptk" &
-    GPTOKEYB_PID=$!
-else
-    GPTOKEYB_PID=""
+    # PortMaster's GPTOKEYB value is a command plus arguments (often ESUDO,
+    # the gptokeyb path and ESUDOKILL), so invoke it as an argv array.
+    read -r -a GPTOKEYB_CMD <<< "$GPTOKEYB"
+    if [ "${#GPTOKEYB_CMD[@]}" -gt 0 ]; then
+        "${GPTOKEYB_CMD[@]}" "$LOADER" -c "$GAMEDIR/sims3.gptk" &
+        GPTOKEYB_PID=$!
+    fi
 fi
 
 echo "--- STARTING LOADER ---"
+TASKSET_CMD=()
 if [ -n "${TASKSET:-}" ]; then
-    $TASKSET "$LOADER" --run --root "$GAME_DIR" "$GAME_IMAGE"
+    read -r -a TASKSET_CMD <<< "$TASKSET"
+fi
+if [ "${#TASKSET_CMD[@]}" -gt 0 ]; then
+    "${TASKSET_CMD[@]}" "$LOADER" --run --root "$GAME_DIR" "$GAME_IMAGE"
     GAME_RC=$?
 else
     "$LOADER" --run --root "$GAME_DIR" "$GAME_IMAGE"
@@ -89,11 +120,14 @@ fi
 
 echo "Loader exit code: $GAME_RC"
 
-# A non-zero loader exit is a real fallback trigger.
-if [ "$GAME_RC" -ne 0 ] && [ "${SIMS3_FALLBACK:-0}" != "1" ] && [ -x "$GAMEDIR/run-fallback.sh" ]; then
+# An opt-in compatibility retry is available after a nonzero loader exit.
+if [ "$GAME_RC" -ne 0 ] \
+    && [ "${SIMS3_RETRY_FALLBACK:-0}" = "1" ] \
+    && [ "${SIMS3_FALLBACK_ACTIVE:-0}" != "1" ] \
+    && [ -f "$GAMEDIR/run-fallback.sh" ]; then
     echo "--- STARTING COMPATIBILITY FALLBACK ---"
-    export SIMS3_FALLBACK=1
-    "$GAMEDIR/run-fallback.sh"
+    export SIMS3_FALLBACK_ACTIVE=1
+    bash "$GAMEDIR/run-fallback.sh"
     GAME_RC=$?
     echo "Fallback exit code: $GAME_RC"
 fi

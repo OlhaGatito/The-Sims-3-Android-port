@@ -6,7 +6,13 @@
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 
-if [ -d "/opt/system/Tools/PortMaster/" ]; then
+if [ -d "/PortMaster/" ]; then
+    controlfolder="/PortMaster"
+elif [ -d "/mnt/mmc/MUOS/PortMaster/" ]; then
+    controlfolder="/mnt/mmc/MUOS/PortMaster"
+elif [ -d "/mnt/sdcard/MUOS/PortMaster/" ]; then
+    controlfolder="/mnt/sdcard/MUOS/PortMaster"
+elif [ -d "/opt/system/Tools/PortMaster/" ]; then
     controlfolder="/opt/system/Tools/PortMaster"
 elif [ -d "/opt/tools/PortMaster/" ]; then
     controlfolder="/opt/tools/PortMaster"
@@ -16,7 +22,15 @@ else
     controlfolder="/roms/ports/PortMaster"
 fi
 
-source "$controlfolder/control.txt"
+if [ ! -f "$controlfolder/control.txt" ]; then
+    echo "[The Sims 3] PortMaster control.txt not found: $controlfolder/control.txt" >&2
+    exit 1
+fi
+
+source "$controlfolder/control.txt" || {
+    echo "[The Sims 3] failed to load PortMaster control.txt" >&2
+    exit 1
+}
 
 export PORT_32BIT="Y"
 
@@ -29,14 +43,28 @@ export PORT_32BIT="Y"
 [ -f "$controlfolder/mod_${CFW_NAME}.txt" ] &&
     source "$controlfolder/mod_${CFW_NAME}.txt"
 
-get_controls
+get_controls || {
+    echo "[The Sims 3] PortMaster get_controls failed" >&2
+    exit 1
+}
 
-GAMEDIR="/$directory/ports/sims3"
+if [ -z "${directory:-}" ]; then
+    echo "[The Sims 3] PortMaster did not define directory" >&2
+    exit 1
+fi
+
+case "$directory" in
+    /*) GAMEDIR="${directory%/}/ports/sims3" ;;
+    *)  GAMEDIR="/${directory%/}/ports/sims3" ;;
+esac
+
 cd "$GAMEDIR" || exit 1
 
-[ -f "$GAMEDIR/run.sh" ] || exit 1
-chmod +x "$GAMEDIR/run.sh" 2>/dev/null || true
+[ -f "$GAMEDIR/run.sh" ] || {
+    echo "[The Sims 3] runtime not found: $GAMEDIR/run.sh" >&2
+    exit 1
+}
 
 export SIMS3_GAME_DIR="$GAMEDIR"
 
-exec "$GAMEDIR/run.sh" "$@"
+exec bash "$GAMEDIR/run.sh" "$@"

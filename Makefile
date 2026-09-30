@@ -3,10 +3,10 @@
 CC      ?= arm-linux-gnueabihf-gcc
 STRIP   ?= $(patsubst %gcc,%strip,$(CC))
 CFLAGS  ?= -O2
-CFLAGS  += -std=c11 -D_GNU_SOURCE -Wall -Iinclude -Ithird_party -Ithird_party/lzma \
+CFLAGS  += -std=c11 -D_GNU_SOURCE -Wall -Iloader/include -Iloader/third_party -Iloader/third_party/lzma \
            -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
 LDLIBS  += -ldl -pthread -lm
-SRC     := src/derbh.c src/main.c src/nxmix.c src/s3e_audio.c src/s3e_config.c src/s3e_file.c src/s3e_gl.c src/s3e_host.c src/s3e_image.c src/s3e_input.c src/s3e_runtime.c  third_party/lzma/LzmaDec.c
+SRC     := loader/src/derbh.c loader/src/main.c loader/src/nxmix.c loader/src/s3e_audio.c loader/src/s3e_config.c loader/src/s3e_file.c loader/src/s3e_gl.c loader/src/s3e_host.c loader/src/s3e_image.c loader/src/s3e_input.c loader/src/s3e_runtime.c loader/third_party/lzma/LzmaDec.c
 TARGET  := sims3_s3e_loader
 
 all: $(TARGET)

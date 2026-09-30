@@ -71,6 +71,26 @@
           "min_size": 1048576,
           "magic_hex": "58453355"
         }
+      ],
+      "fallbacks": [
+        {
+          "id": "python-lzma",
+          "title": "Decoder Python LZMA-alone",
+          "argv": [
+            "python3",
+            "{recipe_dir}/hooks/unpack-s3e-python.py",
+            "{stage}/game/The Sims 3.s3e",
+            "{stage}/game/game.s3e.unpacked"
+          ],
+          "checkpoint": [
+            {
+              "path": "game/game.s3e.unpacked",
+              "type": "file",
+              "min_size": 1048576,
+              "magic_hex": "58453355"
+            }
+          ]
+        }
       ]
     }
   ],

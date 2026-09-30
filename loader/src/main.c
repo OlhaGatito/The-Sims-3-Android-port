@@ -214,7 +214,7 @@ static int unpack_s3e_file(const char *source_path, const char *destination_path
                                ((uint32_t)source[3] << 16) |
                                ((uint32_t)source[4] << 24);
     if (dictionary_size > S3E_LZMA_MAX_OUTPUT_SIZE) {
-        fprintf(stderr, "[unpack] invalid or oversized LZMA dictionary (%u bytes)\\n",
+        fprintf(stderr, "[unpack] invalid or oversized LZMA dictionary (%u bytes)\n",
                 dictionary_size);
         free(source);
         return 1;

@@ -41,8 +41,13 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
         echo "[ERROR] game data is missing and extractor was not found: $EXTRACTOR"
         exit 1
     }
-    echo "[setup] game data is incomplete; starting NXExtract"
-    bash "$EXTRACTOR"
+    echo "[setup] game data is incomplete; starting Gatito Extractor UI"
+    GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
+    if [ -x "$GATITO_UI" ]; then
+        bash "$GATITO_UI"
+    else
+        bash "$EXTRACTOR"
+    fi
     EXTRACT_RC=$?
     [ "$EXTRACT_RC" -eq 0 ] || {
         echo "[ERROR] data preparation failed with exit code $EXTRACT_RC"

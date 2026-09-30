@@ -18,7 +18,7 @@ on:
       - ".github/workflows/build-sims3-loader.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -45,9 +45,25 @@ jobs:
           path: sims3_s3e_loader
           if-no-files-found: error
 
+  publish:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download compiled loader
+        uses: actions/download-artifact@v4
+        with:
+          name: sims3-s3e-loader-armv7-hardfloat
+          path: .build-artifact
+
       - name: Keep the tracked loader binary in sync
-        if: github.event_name == 'push'
         run: |
+          cp .build-artifact/sims3_s3e_loader sims3_s3e_loader
           if git diff --quiet -- sims3_s3e_loader; then
             echo "The tracked loader binary is already up to date."
             exit 0

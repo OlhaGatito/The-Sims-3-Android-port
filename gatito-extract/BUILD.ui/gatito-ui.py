@@ -162,13 +162,29 @@ class SDLUI:
     def draw(self,pct,stage,details):
         L=self.lib
         L.SDL_SetRenderDrawColor(self.renderer,10,14,20,255); L.SDL_RenderClear(self.renderer)
+        class R(ctypes.Structure):
+            _fields_=[("x",ctypes.c_int),("y",ctypes.c_int),("w",ctypes.c_int),("h",ctypes.c_int)]
         def rect(x,y,w,h,c):
-            class R(ctypes.Structure): _fields_=[("x",ctypes.c_int),("y",ctypes.c_int),("w",ctypes.c_int),("h",ctypes.c_int)]
-            r=R(x,y,w,h); L.SDL_SetRenderDrawColor(self.renderer,*c,255); L.SDL_RenderFillRect(self.renderer,ctypes.byref(r))
-        rect(24,24,592,432,(22,29,40)); rect(48,104,544,30,(45,52,64))
-        rect(48,104,544*max(0,min(100,pct))//100,30,(65,190,110))
-        rect(48,160,544,2,(65,190,110)); rect(48,384,544,2,(65,190,110))
-        # Keep the SDL screen visual even without a font dependency.
+            r=R(x,y,w,h); L.SDL_SetRenderDrawColor(self.renderer,*c,255)
+            L.SDL_RenderFillRect(self.renderer,ctypes.byref(r))
+        def text(x,y,value,scale=2,c=(235,240,245),limit=42):
+            value=str(value).upper()[:limit]
+            for ch in value:
+                glyph=FONT.get(ch,FONT[" "])
+                for row,bits in enumerate(glyph):
+                    for col in range(5):
+                        if bits & (1 << (4-col)):
+                            rect(x+col*scale,y+row*scale,scale,scale,c)
+                x += 6*scale
+        rect(24,24,592,432,(22,29,40))
+        text(48,44,"GATITO EXTRATOR",3)
+        text(48,78,"THE SIMS 3",2,(120,200,140))
+        rect(48,116,544,30,(45,52,64))
+        rect(48,116,544*max(0,min(100,pct))//100,30,(65,190,110))
+        text(48,158,"%d%%" % pct,2)
+        text(48,194,stage,2,(235,240,245),54)
+        text(48,236,details,1,(180,190,200),76)
+        text(48,382,"START + SELECT = SAIR",2,(120,200,140))
         self._last=(pct,stage,details)
         L.SDL_RenderPresent(self.renderer)
     def close(self):
@@ -284,7 +300,7 @@ def main():
     try:
         draw(5,"AMBIENTE DETECTADO","Interface grafica iniciada")
         with open(a.log,"a",encoding="utf-8") as prep_log:
-            raw_monitor=RawInputMonitor(prep_log) if not ui.enabled else None
+            raw_monitor=RawInputMonitor(prep_log)
             mapping_end=time.time()+3.0
             while time.time()<mapping_end:
                 combo=ui.event(prep_log) if ui.enabled else raw_monitor.poll()

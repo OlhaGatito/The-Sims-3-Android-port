@@ -148,11 +148,11 @@ class SDLUI:
                 if logf: logf.write("[input] SDL_QUIT\n"); logf.flush()
                 return True
             if t == 0x300:
-                key=struct.unpack_from("I",buf.raw,12)[0]
+                key=struct.unpack_from("I",buf.raw,20)[0]
                 if logf: logf.write("[input] SDL_KEYDOWN key=%d\n" % key); logf.flush()
                 continue
             if t in (0x603,0x604,0x651,0x652):
-                button=struct.unpack_from("B",buf.raw,6)[0]
+                button=struct.unpack_from("B",buf.raw,12)[0]
                 down=t in (0x603,0x651)
                 if button == 4: self.select_down=down
                 if button == 6: self.start_down=down

@@ -26,8 +26,23 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     EXTRACTOR="$GAMEDIR/run-extractor.sh"
     [ -f "$EXTRACTOR" ] || { echo "[ERROR] extractor not found: $EXTRACTOR"; exit 1; }
     GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
-    if [ -f "$GATITO_UI" ]; then bash "$GATITO_UI"; else bash "$EXTRACTOR"; fi
+    GATITO_LOG="$GAMEDIR/logs/gatito-launch.log"
+    {
+        echo ""
+        echo "=== The Sims 3 / Gatito launch ==="
+        echo "DATE=$(date 2>/dev/null || true)"
+        echo "GAMEDIR=$GAMEDIR"
+        echo "GATITO_UI=$GATITO_UI"
+        echo "EXTRACTOR=$EXTRACTOR"
+    } >>"$GATITO_LOG" 2>&1
+    if [ -f "$GATITO_UI" ]; then
+        bash "$GATITO_UI"
+    else
+        echo "[ERROR] Gatito UI launcher missing: $GATITO_UI" >>"$GATITO_LOG" 2>&1
+        bash "$EXTRACTOR"
+    fi
     EXTRACT_RC=$?
+    echo "[Gatito] launcher exit code=$EXTRACT_RC" >>"$GATITO_LOG" 2>&1
     [ "$EXTRACT_RC" -eq 0 ] || { echo "[ERROR] data preparation failed: $EXTRACT_RC"; exit "$EXTRACT_RC"; }
 fi
 

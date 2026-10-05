@@ -130,7 +130,3 @@ Código‑fonte sob **GPL‑2.0‑or‑later** (não cobre direitos do jogo).
 Consulte `LICENSE`.
 
 ---
-
-### 🎉 Bem‑vindo em Willow Creek!
-
-```

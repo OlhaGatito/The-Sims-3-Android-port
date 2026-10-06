@@ -1,0 +1,48 @@
+name: Multi-Architecture CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64,arm
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user-static
+
+    - name: Test ARMv7 build
+      run: |
+        cd loader
+        make clean
+        make CC=arm-linux-gnueabihf-gcc
+        file sims3_s3e_loader | grep "ARM"
+        ./sims3_s3e_loader --help
+
+    - name: Test AArch64 build
+      run: |
+        cd loader
+        make clean
+        make CC=aarch64-linux-gnu-gcc CFLAGS="$(echo $CFLAGS | sed 's/-march=armv7-a/-march=armv8-a/')"
+        file sims3_s3e_loader | grep "aarch64"
+        ./sims3_s3e_loader --help
+
+    - name: Gatito extract test
+      run: |
+        python3 -m pip install --user pygame
+        python3 gatito-extract/gatito-extract-v3.py --help
+
+    - name: PortMaster test
+      run: |
+        bash run.sh --help

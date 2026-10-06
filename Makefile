@@ -13,6 +13,16 @@ all: $(TARGET)
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) -o $@ $(SRC) $(LDLIBS)
 	$(STRIP) -s $@
+
+# AArch64 native build (64-bit)
+# Ex.: make aarch64
+aarch64:
+	$(MAKE) clean
+	$(MAKE) CC=aarch64-linux-gnu-gcc CFLAGS="$(subst -march=armv7-a,-march=armv8-a,$(CFLAGS)) -mfloat-abi=lp64"
+	@mv $(TARGET) $(TARGET)_aarch64
+	@echo "Built $(TARGET)_aarch64"
+
 clean:
-	rm -f $(TARGET)
-.PHONY: all clean
+	rm -f $(TARGET) $(TARGET)_aarch64
+
+.PHONY: all clean aarch64

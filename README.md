@@ -1,132 +1,207 @@
-# 🎮 The Sims 3 — Android → Linux ARM
+# 🎮 The Sims 3 — Android → Linux ARM (Multi-CFW)
 
-> Port experimental de **The Sims 3 (Android)** para handhelds Linux (ARMv7 hard‑float), usando runtime **Marmalade/S3E** e sistema de extração **NXExtract**.
+> Port de **The Sims 3 (Android)** para handhelds Linux ARM com suporte **multi-firmware**.  
+> Compatível com: **muOS**, **ArkOS**, **ROCKNIX**, **NextOS** e outros CFWs com PortMaster.
 
 ---
 
 ## ⚡ Estado atual
 
-| 🚦 | Condição |
-|----|----------|
-| 🧪 | **Em validação** – loader compilado, mas renderização e áudio ainda precisam de testes em hardware. |
-| 📅 | Última atualização: **2026‑10‑05** |
+| Status | Detalhes |
+|--------|----------|
+| ✅ **Loader** | Compilado para ARMv7 hard-float (NEON, VFPv4) |
+| ✅ **Extração** | Gatito Extractor com UI gráfica |
+| ✅ **Compatibilidade** | Detecção automática de CFW e bibliotecas |
+| 🔄 **Testes** | Validado em muOS; teste em andamento em ArkOS, ROCKNIX, NextOS |
+| 📅 | Última atualização: **2026-10-06** |
 
 ---
 
-## 📦 Como usar (usuário final)
+## 🚀 Início Rápido
 
-> ⚠️ Nenhum arquivo proprietário (APK, OBB, assets) está neste repositório.  
-> Você deve providenciar os arquivos legalmente a partir do seu próprio backup.
+> ⚠️ **Você precisa:** APK + OBB legais do jogo (seu próprio backup)
 
-### 1️⃣ Preparação
-
-Copie seu **APK** e **OBB** para a pasta `data/`:
+### 1. Copie seus arquivos
 
 ```bash
-cp ~/Downloads/the-sims-3-*.apk data/
-cp ~/Downloads/main.*.obb data/
+# Coloque na raiz da pasta do port:
+cp ~/Downloads/the-sims-3-*.apk .
+cp ~/Downloads/main.*.obb .
 ```
 
-Execute o *setup*:
-
-```bash
-./setup.sh
-```
-
-Ele vai:
-- Extrair o APK
-- Descompactar o `.s3e` (usando **NXExtract**)
-- Validar os arquivos
-- Preparar o *stage* para o loader
-
-### 2️⃣ Execução
-
-Rode o port:
+### 2. Execute
 
 ```bash
 ./run.sh
 ```
 
-Se houver problema:
+**Primeira execução:** Gatito Extractor preparará os dados automaticamente (pode levar 5-10 min).  
+**Próximas execuções:** O jogo inicia direto.
+
+### 3. Se houver problema
 
 ```bash
-./run-fallback.sh      # versão alternativa
-./run-extractor.sh     # apenas prepara dados, sem iniciar o jogo
+# Fallback com backends padrão:
+./run-fallback.sh
+
+# Diagnóstico completo:
+./detect_system.sh
 ```
 
 ---
 
-## 🗂️ Estrutura do repositório
+## 📁 Estrutura
 
-| 📁 Pasta | Conteúdo |
-|---------|----------|
-| `loader/` | Runtime Marmalade/S3E compilado (ARMv7‑A hard‑float) |
-| `nxextract/` | Motor de extração transacional (stage → hooks → validation → commit) |
-| `hooks/` | Scripts que transformam o payload (ex.: descompactação LZMA) |
-| `data/` | **Coloque aqui seu APK e OBB!** |
-| `sims3_s3e_loader` | Binário do loader pronto |
-| `port.json` | Metadata (versão, ABI, reciprocidade) |
-| `run*.sh` | Scripts de execução e *fallback* |
-| `docs/` | Documentação de arquitetura (veja **Main**) |
+```
+.
+├── run.sh                    # Launcher principal (recomendado)
+├── run-fallback.sh           # Fallback com backends conservadores
+├── detect_system.sh          # Diagnóstico: CFW, arquitetura, libs
+├── The Sims 3.sh             # Wrapper PortMaster
+├── port_compat.sh            # Detecção automática de áudio/vídeo
+├── sims3_s3e_loader          # Runtime Marmalade/S3E (ARMv7 hard-float)
+├── loader/                   # Código-fonte do loader (C)
+├── gatito-extract/           # Motor de extração com UI gráfica
+│   ├── run.sh               # Launcher da UI
+│   ├── gatito-extract-v3.py # Engine de extração (Python)
+│   └── BUILD.ui/            # Interface gráfica
+├── hooks/                    # Scripts de processamento (unpack, validação)
+├── extractor.json            # Receita de extração
+├── COMPATIBILIDADE.md        # Matriz de suporte por CFW
+├── INSTAL.md                 # Instruções de instalação
+└── docs/                     # Documentação técnica
+```
 
 ---
 
-## 🔍 Como testar
+## 🔧 Configuração (Opcional)
+
+### Áudio
+```bash
+export SIMS3_AUDIO_DRIVER=alsa      # ou pulseaudio, pipewire
+./run.sh
+```
+
+### Vídeo
+```bash
+export SDL_VIDEODRIVER=kmsdrm       # ou fbcon, x11, wayland
+export SIMS3_W=640
+export SIMS3_H=480
+./run.sh
+```
+
+### Bypass da UI (extração silenciosa)
+```bash
+export SIMS3_SKIP_UI=1
+./run.sh
+```
+
+---
+
+## 🧪 Suporte por CFW
+
+| CFW | Status | Notas |
+|-----|--------|-------|
+| **muOS** | ✅ Testado | Funcionando |
+| **ArkOS** | 🔄 Em teste | Validar ARM32 + libs gráficas |
+| **ROCKNIX** | 🔄 Em teste | Validar suporte ARM32 |
+| **NextOS** | 🔄 Em teste | Confirmar ABI e backends |
+| **Genérico** | ⚠️ Parcial | Requer GLIBC 2.22+, libSDL2, libEGL, libGLES |
+
+**Como testar em seu CFW:**
 
 ```bash
-# Verifique o loader:
-ls -l sims3_s3e_loader
+# 1. Faça diagnóstico:
+./detect_system.sh
+
+# 2. Se tudo OK, tente:
+./run.sh
+
+# 3. Se falhar, tente fallback:
+./run-fallback.sh
+
+# 4. Reporte com:
+cat logs/debug.log
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Erro: "loader is not executable"
+```bash
+chmod +x sims3_s3e_loader
+./run.sh
+```
+
+### Erro: "SDL2 not found"
+**Seu CFW não tem bibliotecas 32-bit.** Instale:
+```bash
+# muOS: geralmente pré-instalado
+# ArkOS/ROCKNIX: `apt install libsdl2-dev:armhf` (ou equivalente)
+```
+
+### Tela preta / sem som
+```bash
+./run-fallback.sh          # Tenta ALSA + framebuffer
+./detect_system.sh         # Confirma drivers disponíveis
+```
+
+### Extrator travou
+```bash
+# Limpe e recomece:
+rm -rf game/
+./run.sh
+```
+
+---
+
+## 🔍 Diagnóstico
+
+```bash
+# Sistema:
+./detect_system.sh
+
+# Loader:
 file sims3_s3e_loader
 readelf -h sims3_s3e_loader
 
-# Rode o *setup* para preparar os dados:
-./setup.sh
+# Dados extraídos:
+ls -la game/
+file game/game.s3e.unpacked       # Deve ser "XE3U"
 
-# Verifique o *stage* preparado:
-ls -la stage/game/
+# Logs:
+tail -50 logs/debug.log
+tail -50 logs/fallback.log
 ```
 
-> Se tudo estiver OK, você verá `stage/game/game.s3e.unpacked` com header **`XE3U`**.
+---
+
+## 📚 Documentação Técnica
+
+- **`COMPATIBILIDADE.md`** — Matriz detalhada por CFW e requisitos
+- **`INSTAL.md`** — Instalação passo-a-passo
+- **`loader/Makefile`** — Como recompilar o loader
+- **`extractor.json`** — Receita de extração (validações, hooks)
 
 ---
 
-## 🛠️ Configuração gráfica (opcional)
+## 🤝 Como Contribuir
 
-Se precisar ajustar a renderização, defina variáveis antes de rodar:
-
-```bash
-export SDL_VIDEODRIVER=wayland    # ou fbcon, drm, etc.
-export SDL_VIDEO_WIDTH=800
-export SDL_VIDEO_HEIGHT=600
-./run.sh
-```
-
-> Geralmente o CFW já define isso. Ajuste apenas se o jogo não iniciar.
-
----
-
-## 📚 Documentação detalhada (centralizada)
-
-Veja a documentação técnica completa em:
-- **`Main/docs/INSTAL_SIMS3.md`** – instalação passo‑a‑passo
-- **`Main/docs/ARCHITECTURE_SIMS3.md`** – arquitetura do loader e NXExtract
-- **`Main/docs/CHECKLIST_SIMS3.md`** – diagnóstico completo
-- **`Main/docs/COMPATIBILITY-REPORT-TEMPLATE.md`** – como reportar compatibilidade
-
----
-
-## 🧑‍💻 Como contribuir
-
-1. **Fork** do repositório **Main** (código‑fonte e documentação).
-2. Corrija bugs no loader, melhore scripts ou atualize compatibilidade com novos CFWs.
-3. Abra *pull‑request* descrevendo o teste realizado.
-4. Quando validado pelo CI, uma nova versão será atualizada aqui.
+1. Teste em seu CFW
+2. Execute `./detect_system.sh` e anote o resultado
+3. Execute `./run.sh` e reporte sucesso/erro
+4. Abra issue com: CFW, modelo, logs, resultado
 
 ---
 
 ## ⚖️ Licença
 
-Código‑fonte sob **GPL‑2.0‑or‑later** (não cobre direitos do jogo).  
-Consulte `LICENSE`.
+- **Código-fonte:** GPL-2.0-or-later
+- **Assets do jogo:** Não inclusos (você fornece legalmente)
+
+Veja `LICENSE`.
 
 ---
+
+**Questions?** Abra uma [issue](https://github.com/OlhaGatito/The-Sims-3-Android-port/issues).

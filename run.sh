@@ -1,5 +1,6 @@
 #!/bin/bash
-# The Sims 3 — internal PortMaster runtime
+# The Sims 3 — internal runtime with multi-CFW support
+# Supports: muOS, ArkOS, ROCKNIX, NextOS, PortMaster e Linux ARM genérico
 set +u
 GAMEDIR="$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd -P)" || exit 1
 cd "$GAMEDIR" || exit 1
@@ -7,12 +8,32 @@ LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
 mkdir -p "$LOGDIR" 2>/dev/null || exit 1
 LOG="${SIMS3_LOG:-$LOGDIR/debug.log}"
 touch "$LOG" 2>/dev/null || LOG="${TMPDIR:-/tmp}/sims3-debug.log"
-echo "=== The Sims 3 internal runtime ==="
+echo "=== The Sims 3 runtime ==="
 echo "GAMEDIR=$GAMEDIR"
-echo "CFW=${CFW_NAME:-unknown}"
-echo "DEVICE=${DEVICE_NAME:-unknown}"
-echo "ARCH=${DEVICE_ARCH:-unknown}"
+
+# --- Deteccao de CFW quando o PortMaster nao definiu ---
+if [ -z "${CFW_NAME:-}" ]; then
+    CFW_NAME=unknown
+    [ -f /opt/muos/bin/muos-version ] && CFW_NAME=muos
+    { [ -d /opt/system/bin ] && [ -f "/opt/system/Advanced/Firmware Version.txt" ]; } && CFW_NAME=arkos
+    [ -f /opt/bin/emulationstation ] && CFW_NAME=rocknix
+    grep -qi "nextos" /etc/os-release 2>/dev/null && CFW_NAME=nextos
+fi
+export CFW_NAME
+
+# --- Deteccao de arquitetura ---
+ARCH="${DEVICE_ARCH:-$(uname -m)}"
+export DEVICE_ARCH="$ARCH"
+echo "CFW=$CFW_NAME"
+echo "DEVICE=${DEVICE_NAME:-$(uname -n 2>/dev/null || echo unknown)}"
+echo "ARCH=$ARCH"
 echo "DATE=$(date 2>/dev/null || true)"
+
+# --- Compatibilidade de audio/video (deteccao automatica) ---
+if [ -f "$GAMEDIR/port_compat.sh" ]; then
+    . "$GAMEDIR/port_compat.sh"
+    port_detect_runtime 2>/dev/null || true
+fi
 GAME_DIR="$GAMEDIR/game"
 GAME_IMAGE="$GAME_DIR/game.s3e.unpacked"
 LOADER="$GAMEDIR/sims3_s3e_loader"
@@ -23,8 +44,6 @@ if [ ! -x "$LOADER" ]; then chmod +x "$LOADER" 2>/dev/null || true; fi
 
 # First launch: keep output visible so Gatito can update PortMaster's GUI.
 if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
-    EXTRACTOR="$GAMEDIR/run-extractor.sh"
-    [ -f "$EXTRACTOR" ] || { echo "[ERROR] extractor not found: $EXTRACTOR"; exit 1; }
     GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
     GATITO_LOG="$GAMEDIR/logs/gatito-launch.log"
     {
@@ -33,14 +52,9 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
         echo "DATE=$(date 2>/dev/null || true)"
         echo "GAMEDIR=$GAMEDIR"
         echo "GATITO_UI=$GATITO_UI"
-        echo "EXTRACTOR=$EXTRACTOR"
     } >>"$GATITO_LOG" 2>&1
-    if [ -f "$GATITO_UI" ]; then
-        bash "$GATITO_UI"
-    else
-        echo "[ERROR] Gatito UI launcher missing: $GATITO_UI" >>"$GATITO_LOG" 2>&1
-        bash "$EXTRACTOR"
-    fi
+    [ -f "$GATITO_UI" ] || { echo "[ERROR] Gatito UI launcher missing: $GATITO_UI"; exit 1; }
+    bash "$GATITO_UI"
     EXTRACT_RC=$?
     echo "[Gatito] launcher exit code=$EXTRACT_RC" >>"$GATITO_LOG" 2>&1
     [ "$EXTRACT_RC" -eq 0 ] || { echo "[ERROR] data preparation failed: $EXTRACT_RC"; exit "$EXTRACT_RC"; }
@@ -56,8 +70,25 @@ echo "Prepared game image: $GAME_IMAGE"
 echo "Prepared assets: $ASSET_DIR"
 export SIMS3_W="${SIMS3_W:-${DISPLAY_WIDTH:-640}}"
 export SIMS3_H="${SIMS3_H:-${DISPLAY_HEIGHT:-480}}"
-if [ -d "$GAMEDIR/libs.armhf" ]; then
-    export LD_LIBRARY_PATH="$GAMEDIR/libs.armhf${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Bibliotecas: prioriza as do port, depois multiarch do sistema (armhf em host aarch64)
+LIB_PATHS="$GAMEDIR/libs.armhf"
+for _p in /lib/arm-linux-gnueabihf /usr/lib/arm-linux-gnueabihf \
+          /lib/aarch64-linux-gnu /usr/lib/aarch64-linux-gnu \
+          /lib /usr/lib /usr/local/lib; do
+    [ -d "$_p" ] && LIB_PATHS="$LIB_PATHS:$_p"
+done
+export LD_LIBRARY_PATH="$LIB_PATHS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Fallback de compatibilidade habilitado por padrao (desative com SIMS3_RETRY_FALLBACK=0)
+export SIMS3_RETRY_FALLBACK="${SIMS3_RETRY_FALLBACK:-1}"
+
+# Em hosts AArch64, confirma suporte a binarios de 32 bits (loader armhf)
+if [ "$ARCH" = "aarch64" ]; then
+    if [ ! -e /lib/ld-linux-armhf.so.3 ] && [ ! -e /lib/arm-linux-gnueabihf/ld-linux-armhf.so.3 ]; then
+        echo "[AVISO] Host AArch64 sem loader ARM32 (ld-linux-armhf.so.3)."
+        echo "[AVISO] O loader atual so roda em ARM 32 bits (armhf)."
+    fi
 fi
 export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-${SDL_GAMECONTROLLERCONFIG:-}}"
 echo "Resolution: ${SIMS3_W}x${SIMS3_H}"

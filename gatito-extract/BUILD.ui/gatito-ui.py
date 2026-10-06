@@ -154,9 +154,25 @@ class SDLUI:
             if t in (0x603,0x604,0x651,0x652):
                 button=struct.unpack_from("B",buf.raw,12)[0]
                 down=t in (0x603,0x651)
-                if button == 4: self.select_down=down
-                if button == 6: self.start_down=down
-                if logf: logf.write("[input] SDL button=%d %s\n" % (button,"DOWN" if down else "UP")); logf.flush()
+                # Eventos de controlador SDL (0x651): BACK=4, START=6.
+                # Eventos crus de joystick (0x603) variam por fabricante
+                # (BACK=6, START=7) - aceitamos os dois esquemas.
+                if t in (0x651,0x652):
+                    sel, st = 4, 6
+                else:
+                    sel, st = 6, 7
+                if button == sel:
+                    self.select_down = down
+                elif button == st:
+                    self.start_down = down
+                elif t in (0x651,0x652) and button == 7:
+                    # alguns pads enviam START=7 mesmo em eventos de controlador
+                    self.start_down = down
+                if logf:
+                    logf.write("[input] SDL button=%d %s select=%s start=%s\n"
+                               % (button, "DOWN" if down else "UP",
+                                  self.select_down, self.start_down))
+                    logf.flush()
                 if self.start_down and self.select_down: return True
         return False
     def draw(self,pct,stage,details):
@@ -197,8 +213,9 @@ def input_devices():
     return sorted(glob.glob("/dev/input/event*"))
 
 EVIOCGNAME = 0x80004506
-BTN_SELECT = 314
-BTN_START = 315
+BTN_MODE = 316
+BTN_SELECT = 314  # BTN_SELECT — mantido para compatibilidade
+BTN_START = 315   # BTN_START — usado como START em muitos pads
 
 class RawInputMonitor:
     def __init__(self, logf=None):
@@ -224,11 +241,13 @@ class RawInputMonitor:
                     if len(data)!=INPUT_EVENT.size: break
                     _,_,typ,code,val=INPUT_EVENT.unpack(data)
                     if typ==EV_KEY:
-                        label={BTN_SELECT:"SELECT",BTN_START:"START"}.get(code,"")
+                        label={BTN_SELECT:"SELECT",BTN_START:"START",BTN_MODE:"START"}.get(code,"")
                         state="DOWN" if val==1 else ("UP" if val==0 else "REPEAT")
                         self.log("[input] %s type=EV_KEY code=%d%s value=%d state=%s" % (path,code,(" label="+label) if label else "",val,state))
-                        if code==BTN_SELECT: self.select_down=(val!=0)
-                        if code==BTN_START: self.start_down=(val!=0)
+                        if code == BTN_SELECT:
+                            self.select_down = (val != 0)
+                        elif code in (BTN_START, BTN_MODE):
+                            self.start_down = (val != 0)
                     elif typ: self.log("[input] %s type=%d code=%d value=%d" % (path,typ,code,val))
             except OSError as exc:
                 if exc.errno!=errno.EAGAIN: self.log("[input] %s read_error=%s" % (path,exc))
@@ -284,7 +303,9 @@ def main():
     ap.add_argument("--game-dir",required=True); ap.add_argument("--recipe",required=True)
     ap.add_argument("--engine",required=True); ap.add_argument("--log",required=True)
     ap.add_argument("--input"); ap.add_argument("--abi"); ap.add_argument("--demo",action="store_true")
-    ap.add_argument("--no-pause",action="store_true"); a=ap.parse_args()
+    ap.add_argument("--no-pause",action="store_true")
+    ap.add_argument("--exit-timeout",type=int,default=int(os.environ.get("SIMS3_UI_EXIT_TIMEOUT","20") or 20))
+    a=ap.parse_args()
     game_dir=Path(a.game_dir).resolve(); recipe=Path(a.recipe).resolve(); engine=Path(a.engine).resolve()
     details=collect_data(game_dir,recipe,engine,a.log)
     ui=SDLUI(); fb=None
@@ -358,11 +379,18 @@ def main():
                 final="CONCLUIDO" if rc==0 else ("CANCELADO" if rc==130 else "ERRO - PROCESSO TERMINOU")
                 draw(100 if rc==0 else pct,final,"ARQUIVOS E LOG PRESERVADOS")
         if not a.no_pause:
-            draw(100 if rc==0 else 0,final,"START + SELECT = SAIR")
-            while True:
-                combo=ui.event() if ui.enabled else (raw_monitor.poll() if raw_monitor else False)
-                if combo: break
+            # Sai automaticamente apos timeout (padrao 20s, ou SIMS3_UI_EXIT_TIMEOUT)
+            deadline = time.time() + a.exit_timeout
+            while time.time() < deadline:
+                remaining = int(max(0, deadline - time.time()))
+                draw(100 if rc == 0 else 0,
+                     final,
+                     "SAINDO EM %d S  |  START+SELECT = AGORA" % remaining)
+                combo = ui.event() if ui.enabled else (raw_monitor.poll() if raw_monitor else False)
+                if combo:
+                    break
                 time.sleep(.03)
+            # timeout atingido -> sai automaticamente (proxima etapa: iniciar jogo)
         return rc
     finally:
         if raw_monitor: raw_monitor.close()

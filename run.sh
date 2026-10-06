@@ -55,9 +55,9 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     } >>"$GATITO_LOG" 2>&1
     [ -f "$GATITO_UI" ] || { echo "[ERROR] Gatito UI launcher missing: $GATITO_UI"; exit 1; }
     
-    # Run Gatito UI with a safety timeout (5 minutes). If it hangs, we'll skip and try loader.
-    echo "[INFO] Starting Gatito UI (5 min timeout)..." >>"$GATITO_LOG" 2>&1
-    timeout 300 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
+    # Run Gatito UI with a safety timeout (15 minutes). If it hangs, we'll skip and try loader.
+    echo "[INFO] Starting Gatito UI (15 min timeout)..." >>"$GATITO_LOG" 2>&1
+    timeout 900 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
     EXTRACT_RC=$?
     echo "[Gatito] launcher exit code=$EXTRACT_RC" >>"$GATITO_LOG" 2>&1
     

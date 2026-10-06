@@ -8,8 +8,12 @@ LOGDIR="${SIMS3_LOG_DIR:-$GAMEDIR/logs}"
 mkdir -p "$LOGDIR" 2>/dev/null || exit 1
 LOG="${SIMS3_LOG:-$LOGDIR/debug.log}"
 touch "$LOG" 2>/dev/null || LOG="${TMPDIR:-/tmp}/sims3-debug.log"
+
+# Log from the very beginning (before any checks) to catch early failures
+exec >>"$LOG" 2>&1
 echo "=== The Sims 3 runtime ==="
 echo "GAMEDIR=$GAMEDIR"
+echo "START_TIME=$(date 2>/dev/null || true)"
 
 # --- Deteccao de CFW quando o PortMaster nao definiu ---
 if [ -z "${CFW_NAME:-}" ]; then
@@ -42,6 +46,20 @@ ASSET_DIR="$GAME_DIR/assets"
 if [ ! -x "$LOADER" ]; then chmod +x "$LOADER" 2>/dev/null || true; fi
 [ -x "$LOADER" ] || { echo "[ERROR] loader is not executable: $LOADER"; exit 126; }
 
+# Verifica compatibilidade 32-bit no host aarch64 (loader é ARMv7)
+if [ "$ARCH" = "aarch64" ]; then
+    INTERP=$(readelf -l "$LOADER" 2>/dev/null | grep 'INTERP' | awk '{print $4}' | tr -d '[]')
+    if [ -n "$INTERP" ] && [ ! -f "$INTERP" ]; then
+        echo "[AVISO] Loader 32-bit requer interpretador $INTERP (não encontrado)" 
+        echo "[AVISO] Tentando localizar ld-linux-armhf.so.3..."
+        for p in /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux-armhf.so.3 /usr/lib/arm-linux-gnueabihf/ld-linux-armhf.so.3; do
+            [ -f "$p" ] && { echo "[OK] Encontrado: $p"; break; }
+        done
+        # Tenta adicionar paths de bibliotecas 32-bit
+        export LD_LIBRARY_PATH="/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:/lib:/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    fi
+fi
+
 # First launch: keep output visible so Gatito can update PortMaster's GUI.
 if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
@@ -73,11 +91,20 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     fi
 fi
 
-[ -f "$GAME_IMAGE" ] || { echo "[ERROR] game image not found: $GAME_IMAGE"; exit 1; }
-[ -d "$ASSET_DIR" ] || { echo "[ERROR] assets directory not found: $ASSET_DIR"; exit 1; }
+# Se o Gatito UI acabou de rodar, aguarda um momento para liberar DRM master
+if [ -n "${EXTRACT_RC:-}" ]; then
+    # Matar processos residuais do extrator (python/SDL que seguram DRM master)
+    for _pat in gatito-ui.py gatito-extract; do
+        if command -v pkill >/dev/null 2>&1; then
+            pkill -f "$_pat" 2>/dev/null || true
+        fi
+    done
+    sleep 2
+    # Tenta restaurar modo de console se necessário
+    command -v chvt >/dev/null 2>&1 && chvt 1 2>/dev/null || true
+fi
 
-# Only the actual game runtime goes to the persistent log.
-exec >>"$LOG" 2>&1
+# Everything (including early checks) goes to the persistent log.
 echo "=== The Sims 3 game runtime ==="
 echo "Prepared game image: $GAME_IMAGE"
 echo "Prepared assets: $ASSET_DIR"
@@ -103,6 +130,19 @@ if [ "$ARCH" = "aarch64" ]; then
         echo "[AVISO] O loader atual so roda em ARM 32 bits (armhf)."
     fi
 fi
+
+# Se estava com pageflip error (erro -22 EINVAL do DRM), forcar fbcon
+GATITO_LAUNCH_LOG="$LOGDIR/gatito-launch.log"
+if [ -f "$GATITO_LAUNCH_LOG" ] && grep -q "ERROR: Could not queue pageflip" "$GATITO_LAUNCH_LOG" 2>/dev/null; then
+    echo "[WARN] Detectado pageflip -22 no Gatito UI ($GATITO_LAUNCH_LOG); resetando display para fbcon..."
+    export SDL_VIDEODRIVER=fbcon
+    sleep 1
+elif [ -f "$LOG" ] && grep -q "ERROR: Could not queue pageflip" "$LOG" 2>/dev/null; then
+    echo "[WARN] Detectado pageflip -22 no runtime log; resetando display para fbcon..."
+    export SDL_VIDEODRIVER=fbcon
+    sleep 1
+fi
+
 export SDL_GAMECONTROLLERCONFIG="${sdl_controllerconfig:-${SDL_GAMECONTROLLERCONFIG:-}}"
 echo "Resolution: ${SIMS3_W}x${SIMS3_H}"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"

@@ -40,7 +40,61 @@ if [ -f "$GAMEDIR/port_compat.sh" ]; then
 fi
 GAME_DIR="$GAMEDIR/game"
 GAME_IMAGE="$GAME_DIR/game.s3e.unpacked"
-LOADER="$GAMEDIR/sims3_s3e_loader"
+ASSET_DIR="$GAME_DIR/assets"
+
+# --- Selecao automatica do loader por arquitetura ---
+# REGRA IMPORTANTE: binario aarch64 (64-bit) NAO roda em kernel 32-bit.
+# Por isso o loader armv7 e sempre o padrao seguro; o aarch64 so e usado
+# quando o kernel e 64-bit E o binario existe.
+select_loader() {
+    _arch="$1"
+    case "$_arch" in
+        aarch64|arm64)
+            if [ -x "$GAMEDIR/sims3_s3e_loader_aarch64" ]; then
+                echo "$GAMEDIR/sims3_s3e_loader_aarch64"
+                return 0
+            fi
+            echo "$GAMEDIR/sims3_s3e_loader"
+            return 0
+            ;;
+        arm*|aarch32)
+            # Kernel 32-bit: SOMENTE o loader armv7 funciona aqui.
+            # Um binario aarch64 daria "cannot execute binary file".
+            echo "$GAMEDIR/sims3_s3e_loader"
+            return 0
+            ;;
+        *)
+            echo "$GAMEDIR/sims3_s3e_loader"
+            return 0
+            ;;
+    esac
+}
+LOADER="$(select_loader "$ARCH")"
+echo "LOADER=$LOADER (arch=$ARCH)"
+
+# --- Reaproveita dados extraidos de instalacao duplicada ---
+# Em alguns CFWs o PortMaster monta os ports em dois lugares
+# (ex.: /storage/roms/ports e /storage/games-external/ports).
+# Se a extracao existe em outro caminho, copia para ca em vez de reextrair.
+reuse_existing_game_data() {
+    [ -f "$GAME_IMAGE" ] && [ -d "$ASSET_DIR" ] && return 0
+    for _cand in ${SIMS3_ALT_DATADIRS:-/storage/roms/ports/sims3 /storage/games-external/ports/sims3 /roms/ports/sims3 /opt/roms/ports/sims3} /mnt/mmc/MUOS/PortMaster/ports/sims3; do
+        [ "$_cand" = "$GAMEDIR" ] && continue
+        if [ -f "$_cand/game/game.s3e.unpacked" ] && [ -d "$_cand/game/assets" ]; then
+            echo "[INFO] Dados extraidos encontrados em instalacao alternativa: $_cand"
+            mkdir -p "$GAME_DIR" 2>/dev/null || return 1
+            if cp -r "$_cand/game/." "$GAME_DIR/" 2>/dev/null; then
+                echo "[INFO] Dados copiados de $_cand/game para $GAME_DIR (evita reextracao)"
+                return 0
+            fi
+            return 1
+        fi
+    done
+    return 1
+}
+reuse_existing_game_data || true
+# Reavalia paths apos possivel copia
+GAME_IMAGE="$GAME_DIR/game.s3e.unpacked"
 ASSET_DIR="$GAME_DIR/assets"
 [ -f "$LOADER" ] || { echo "[ERROR] loader not found: $LOADER"; exit 1; }
 if [ ! -x "$LOADER" ]; then chmod +x "$LOADER" 2>/dev/null || true; fi

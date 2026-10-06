@@ -54,10 +54,23 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
         echo "GATITO_UI=$GATITO_UI"
     } >>"$GATITO_LOG" 2>&1
     [ -f "$GATITO_UI" ] || { echo "[ERROR] Gatito UI launcher missing: $GATITO_UI"; exit 1; }
-    bash "$GATITO_UI"
+    
+    # Run Gatito UI with a safety timeout (5 minutes). If it hangs, we'll skip and try loader.
+    echo "[INFO] Starting Gatito UI (5 min timeout)..." >>"$GATITO_LOG" 2>&1
+    timeout 300 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
     EXTRACT_RC=$?
     echo "[Gatito] launcher exit code=$EXTRACT_RC" >>"$GATITO_LOG" 2>&1
-    [ "$EXTRACT_RC" -eq 0 ] || { echo "[ERROR] data preparation failed: $EXTRACT_RC"; exit "$EXTRACT_RC"; }
+    
+    # If UI timed out (124) or failed (!=0), try loading game anyway or use fallback
+    if [ "$EXTRACT_RC" -ne 0 ]; then
+        echo "[AVISO] Gatito UI exit=$EXTRACT_RC (timed out or failed)" >>"$GATITO_LOG" 2>&1
+        if [ ! -f "$GAME_IMAGE" ]; then
+            echo "[INFO] Game image missing, no extraction occurred. Exiting." >>"$GATITO_LOG" 2>&1
+            echo "[ERROR] data preparation failed: $EXTRACT_RC"
+            exit "$EXTRACT_RC"
+        fi
+        echo "[INFO] Game image exists despite UI exit code. Proceeding..." >>"$GATITO_LOG" 2>&1
+    fi
 fi
 
 [ -f "$GAME_IMAGE" ] || { echo "[ERROR] game image not found: $GAME_IMAGE"; exit 1; }

@@ -27,7 +27,8 @@ echo "[hook] log=$LOG"
 # NxExtract extrai S3E para stage/game/s3e
 SRC="$STAGE/game/s3e"
 
-DST="$STAGE/game/s3e.unpacked"
+# Hook descompacta para stage/game/game.s3e.unpacked
+DST="$STAGE/game/game.s3e.unpacked"
 LOADER="$GAME_DIR/sims3_s3e_loader"
 
 echo "[hook] source=$SRC"

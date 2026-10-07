@@ -68,9 +68,9 @@ export SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-auto}
 # NXExtract integration (BYO-data pattern)
 NXEXTRACT_REQUESTED=1
 if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
-  if [ -f "$GAMEDIR/gatito-extract/run-extractor.sh" ]; then
-    $ESUDO chmod +x "$GAMEDIR/gatito-extract/run-extractor.sh" 2>/dev/null || true
-    NXEXTRACT_GAME_DIR="$GAMEDIR" bash "$GAMEDIR/gatito-extract/run-extractor.sh" || {
+  if [ -f "$GAMEDIR/nxextract/run-extractor.sh" ]; then
+    $ESUDO chmod +x "$GAMEDIR/nxextract/run-extractor.sh" 2>/dev/null || true
+    NXEXTRACT_GAME_DIR="$GAMEDIR" bash "$GAMEDIR/nxextract/run-extractor.sh" || {
       echo "ERROR: game data installation did not complete"
       exit 1
     }

@@ -10,7 +10,7 @@
   "items": [
     "The Sims 3.sh",
     "extractor.json",
-    "gatito-extract/",
+    "nxextract/",
     "hooks/",
     "libs.armhf/",
     "libs.aarch64/",

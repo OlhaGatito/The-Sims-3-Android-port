@@ -187,44 +187,44 @@ fi
 # RUN EXTRACTOR ONLY IF STILL NEEDED
 # ============================================================
 if [ "$EXTRACT_RC" -ne 0 ]; then
-    echo "[INFO] Starting Gatito Extractor (data missing/invalid)..."
-    GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
-    GATITO_LOG="$GAMEDIR/logs/gatito-launch.log"
-    mkdir -p "$(dirname "$GATITO_LOG")" 2>/dev/null
+    echo "[INFO] Starting NxExtract extractor (data missing/invalid)..."
+    NXEXTRACT_UI="$GAMEDIR/nxextract/run-extractor.sh"
+    NXEXTRACT_LOG="$GAMEDIR/logs/nxextract.log"
+    mkdir -p "$(dirname "$NXEXTRACT_LOG")" 2>/dev/null
     {
         echo ""
-        echo "=== The Sims 3 / Gatito launch ==="
+        echo "=== The Sims 3 / NxExtract launch ==="
         echo "DATE=$(date 2>/dev/null || true)"
         echo "GAMEDIR=$GAMEDIR"
-        echo "GATITO_UI=$GATITO_UI"
-    } >>"$GATITO_LOG" 2>&1
+        echo "NXEXTRACT_UI=$NXEXTRACT_UI"
+    } >>"$NXEXTRACT_LOG" 2>&1
 
-    [ -f "$GATITO_UI" ] || { echo "[FATAL] Gatito UI launcher missing: $GATITO_UI"; exit 1; }
+    [ -f "$NXEXTRACT_UI" ] || { echo "[FATAL] NxExtract launcher missing: $NXEXTRACT_UI"; exit 1; }
 
-    echo "[INFO] Starting Gatito UI (15 min timeout)..." >>"$GATITO_LOG" 2>&1
+    echo "[INFO] Starting NxExtract (15 min timeout)..." >>"$NXEXTRACT_LOG" 2>&1
 
     # Up to 2 extraction attempts
     for attempt in 1 2; do
-        echo "[INFO] Extraction attempt $attempt/2..." >>"$GATITO_LOG" 2>&1
-        timeout 900 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
+        echo "[INFO] Extraction attempt $attempt/2..." >>"$NXEXTRACT_LOG" 2>&1
+        timeout 900 bash "$NXEXTRACT_UI" >>"$NXEXTRACT_LOG" 2>&1
         EXTRACT_RC=$?
-        echo "[Gatito] launcher exit code=$EXTRACT_RC (attempt $attempt)" >>"$GATITO_LOG" 2>&1
+        echo "[NxExtract] launcher exit code=$EXTRACT_RC (attempt $attempt)" >>"$NXEXTRACT_LOG" 2>&1
 
         if [ "$EXTRACT_RC" -eq 0 ] && validate_s3e "$GAME_IMAGE" && [ -d "$ASSET_DIR" ]; then
-            echo "[INFO] Extraction successful, S3E valid" >>"$GATITO_LOG" 2>&1
+            echo "[INFO] Extraction successful, S3E valid" >>"$NXEXTRACT_LOG" 2>&1
             break
         fi
 
         [ "$EXTRACT_RC" -eq 0 ] && ! validate_s3e "$GAME_IMAGE" && {
-            echo "[WARN] Extraction exited 0 but S3E invalid, retrying..." >>"$GATITO_LOG" 2>&1
+            echo "[WARN] Extraction exited 0 but S3E invalid, retrying..." >>"$NXEXTRACT_LOG" 2>&1
             rm -f "$GAME_IMAGE"
         }
 
         [ "$attempt" -eq 2 ] && [ "$EXTRACT_RC" -ne 0 ] && {
-            echo "[FATAL] Both extraction attempts failed" >>"$GATITO_LOG" 2>&1
+            echo "[FATAL] Both extraction attempts failed" >>"$NXEXTRACT_LOG" 2>&1
             exit 1
         }
-        echo "[INFO] Will retry extraction..." >>"$GATITO_LOG" 2>&1
+        echo "[INFO] Will retry extraction..." >>"$NXEXTRACT_LOG" 2>&1
     done
 fi
 
@@ -240,7 +240,7 @@ echo "[OK] Assets verified: $ASSET_DIR"
 # CLEANUP AFTER EXTRACTOR (release DRM master)
 # ============================================================
 if [ -n "${EXTRACT_RC:-}" ] && [ "$EXTRACT_RC" -eq 0 ]; then
-    for _pat in gatito-ui.py gatito-extract; do
+    for _pat in nxextract-ui nxextract; do
         command -v pkill >/dev/null 2>&1 && pkill -f "$_pat" 2>/dev/null || true
     done
     sleep 2
@@ -282,7 +282,7 @@ detect_smart_fallback() {
     # Check for previous failures in logs
     if [ -f "$LOG" ] && grep -q "ERROR: Could not queue pageflip" "$LOG" 2>/dev/null; then
         fallback="fbcon"
-    elif [ -f "$LOGDIR/gatito-launch.log" ] && grep -q "ERROR: Could not queue pageflip" "$LOGDIR/gatito-launch.log" 2>/dev/null; then
+    elif [ -f "$LOGDIR/nxextract.log" ] && grep -q "ERROR: Could not queue pageflip" "$LOGDIR/nxextract.log" 2>/dev/null; then
         fallback="fbcon"
     fi
     

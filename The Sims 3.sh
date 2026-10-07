@@ -133,7 +133,7 @@ fi
 
 # Exec bits (NextOS pattern)
 $ESUDO chmod +x "$NXBOOTSTRAP_EXECUTABLE" "$GAMEDIR"/*.sh \
-  "$GAMEDIR/gatito-extract"/*.sh 2>/dev/null || true
+  "$GAMEDIR/nxextract"/*.sh 2>/dev/null || true
 $ESUDO chmod 666 "$CUR_TTY" /dev/uinput 2>/dev/null || true
 
 # Console dark during KMSDRM transition
@@ -216,17 +216,16 @@ if ! flock -n 9; then
   exit 1
 fi
 
-# NXExtract owner-data phase (BYO-data pattern) - Gatito Extractor
+# NxExtract owner-data phase (NextOS pattern)
 NXDIR=""
-[ -f "$GAMEDIR/gatito-extract/run-extractor.sh" ] && NXDIR="$GAMEDIR/gatito-extract"
+[ -f "$GAMEDIR/nxextract/run-extractor.sh" ] && NXDIR="$GAMEDIR/nxextract"
 [ -z "$NXDIR" ] && [ -f "$GAMEDIR/run-extractor.sh" ] && NXDIR="$GAMEDIR"
-# NxExtract owner-data phase (NextOS pattern) - Gatito Extractor
 NXEXTRACT_REQUESTED=1
 if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
   NXEXTRACT_INCOMPLETE=0
   [ -n "$NXDIR" ] && [ ! -L "$NXDIR" ] || NXEXTRACT_INCOMPLETE=1
   for nxfile in "$GAMEDIR/extractor.json" "$NXDIR/run-extractor.sh" \
-    "$NXDIR/nxextract-runtime-env.sh" "$NXDIR/nxextract-ui"; do
+    "$NXDIR/nxextract-runtime-env.sh" "$NXDIR/nxextract.py" "$NXDIR/nxextract-ui"; do
     [ -f "$nxfile" ] && [ -s "$nxfile" ] && [ ! -L "$nxfile" ] || NXEXTRACT_INCOMPLETE=1
   done
   if [ "$NXEXTRACT_INCOMPLETE" = 1 ]; then
@@ -235,7 +234,7 @@ if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
     exit 1
   fi
   $ESUDO chmod +x "$NXDIR"/*.sh 2>/dev/null || true
-  $ESUDO chmod +x "$NXDIR/nxextract-ui-ptbr" 2>/dev/null || true
+  $ESUDO chmod +x "$GAMEDIR/sims3_s3e_loader" 2>/dev/null || true
   NXEXTRACT_GAME_DIR="$GAMEDIR" \
     bash "$NXDIR/run-extractor.sh" || {
       echo "ERROR: game data installation did not complete"

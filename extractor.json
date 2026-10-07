@@ -15,7 +15,7 @@
     {
       "id": "sims3-s3e",
       "source": {"kind": "entry", "patterns": ["assets/The Sims 3.s3e"], "scopes": ["apk"]},
-      "destination": "game/s3e",
+      "destination": "game/game.s3e.unpacked",
       "required": true
     },
     {

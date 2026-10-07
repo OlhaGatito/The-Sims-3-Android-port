@@ -15,13 +15,13 @@
     {
       "id": "sims3-s3e",
       "source": {"kind": "entry", "patterns": ["assets/The Sims 3.s3e"], "scopes": ["apk"]},
-      "destination": "game.s3e.unpacked",
+      "destination": "game/s3e",
       "required": true
     },
     {
       "id": "sims3-assets",
       "source": {"kind": "entries", "patterns": ["assets/**"], "scopes": ["apk"], "strip_prefix": "assets"},
-      "destination": "assets",
+      "destination": "game/assets",
       "required": true
     }
   ],
@@ -31,23 +31,22 @@
       "argv": ["bash", "{recipe_dir}/hooks/unpack-s3e.sh"],
       "cwd": "{game_dir}",
       "checkpoint": [
-        {"path": "game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
+        {"path": "game/s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
       ],
       "fallbacks": [
         {
           "id": "python-lzma",
           "title": "Decoder Python LZMA-alone",
-          "argv": ["python3", "{recipe_dir}/hooks/unpack-s3e-python.py", "{stage}/game/The Sims 3.s3e", "{stage}/game.s3e.unpacked"],
+          "argv": ["python3", "{recipe_dir}/hooks/unpack-s3e-python.py", "{stage}/game/s3e", "{stage}/game/s3e.unpacked"],
           "checkpoint": [
-            {"path": "game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
+            {"path": "game/s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
           ]
         }
       ]
     }
   ],
   "commit": [
-    "game.s3e.unpacked",
-    "assets"
+    "game"
   ],
   "marker": ".nxextract-sims3.json",
   "space": {

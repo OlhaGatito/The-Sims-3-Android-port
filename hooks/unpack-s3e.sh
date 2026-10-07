@@ -24,8 +24,10 @@ echo "[hook] game_dir=$GAME_DIR"
 echo "[hook] stage=$STAGE"
 echo "[hook] log=$LOG"
 
-SRC="$STAGE/game/The Sims 3.s3e"
-DST="$STAGE/game/game.s3e.unpacked"
+# NxExtract extrai S3E para stage/game/s3e
+SRC="$STAGE/game/s3e"
+
+DST="$STAGE/game/s3e.unpacked"
 LOADER="$GAME_DIR/sims3_s3e_loader"
 
 echo "[hook] source=$SRC"

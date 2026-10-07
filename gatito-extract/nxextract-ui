@@ -1,0 +1,251 @@
+#!/bin/bash
+# Sims 3 NxExtract UI - NextOS-style interface
+# Gatito extractor with NxExtract UI patterns
+
+NXEXTRACT_VERSION="2.0.0"
+SIMS3_RECIPE="$1"
+GAME_DIR="$2"
+LOG_FILE="${3:-$GAME_DIR/logs/nxextract.log}"
+TIMEOUT="${4:-1800}"  # 30 minutes default
+
+# Colors for NextOS-style output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%H:%M:%S')
+    
+    case "$level" in
+        ERROR) echo -e "${RED}[$timestamp] ERROR: $message${NC}" | tee -a "$LOG_FILE" ;;
+        WARN)  echo -e "${YELLOW}[$timestamp] WARN: $message${NC}" | tee -a "$LOG_FILE" ;;
+        INFO)  echo -e "${BLUE}[$timestamp] INFO: $message${NC}" | tee -a "$LOG_FILE" ;;
+        OK)    echo -e "${GREEN}[$timestamp] OK: $message${NC}" | tee -a "$LOG_FILE" ;;
+    esac
+}
+
+# NxExtract-style progress display
+show_progress() {
+    local current="$1"
+    local total="$2"
+    local status="$3"
+    local width=40
+    
+    local percentage=$((current * 100 / total))
+    local filled=$((current * width / total))
+    local empty=$((width - filled))
+    
+    local bar=$(printf "%*s" $filled "" | tr ' ' '█')
+    bar+=$(printf "%*s" $empty "" | tr ' ' '░')
+    
+    # Clear line and show progress
+    printf "\r\033[K"
+    printf "[${bar}] %d%% - %s" "$percentage" "$status"
+}
+
+# Phase display (NextOS style)
+PHASES=(
+    "PREPARING WORKSPACE"
+    "SEARCHING PACKAGES"
+    "VALIDATING INPUT"
+    "EXTRACTING S3E"
+    "UNPACKING LZMA"
+    "VALIDATING PAYLOAD"
+    "INSTALLING ASSETS"
+    "COMMITTING DATA"
+    "EXTRACTION COMPLETE"
+)
+
+current_phase=0
+
+update_phase() {
+    [ "$current_phase" -lt "${#PHASES[@]}" ] || return 0
+    printf "\n\n"
+    log "INFO" "=== ${PHASES[$current_phase]} ==="
+    current_phase=$((current_phase + 1))
+}
+
+# Initialization
+log "INFO" "Starting Sims 3 NxExtract v$NXEXTRACT_VERSION"
+log "INFO" "Recipe: $SIMS3_RECIPE"
+log "INFO" "Game Dir: $GAME_DIR"
+log "INFO" "Timeout: ${TIMEOUT}s"
+
+# Setup environment
+export SIMS3_NXEXTRACT_MODE=1
+export SIMS3_NXEXTRACT_UI="$0"
+export SIMS3_NXEXTRACT_LOG="$LOG_FILE"
+export SIMS3_NXEXTRACT_START_TIME=$(date +%s)
+
+# Prepare workspace
+NXEXTRACT_WORKSPACE="$GAME_DIR/.nxextract"
+mkdir -p "$NXEXTRACT_WORKSPACE" "$GAME_DIR/logs" || {
+    log "ERROR" "Cannot create workspace"
+    exit 1
+}
+
+log "OK" "Workspace prepared: $NXEXTRACT_WORKSPACE"
+
+# Phase 1: Preparing
+update_phase
+
+# Detect input packages
+log "INFO" "Scanning for Android packages..."
+PACKAGES_FOUND=0
+PACKAGE_NAMES=()
+
+# Search for S3E package
+for search_dir in gamedata .; do
+    search_path="$GAME_DIR/$search_dir"
+    [ -d "$search_path" ] || continue
+    
+    for ext in .apk .apkm .apks .xapk .zip .obb; do
+        for pkg in "$search_path"/*"$ext"; do
+            [ -f "$pkg" ] && {
+                PACKAGES_FOUND=$((PACKAGES_FOUND + 1))
+                PACKAGE_NAMES+=("$(basename "$pkg")")
+                log "OK" "Found: $(basename "$pkg")"
+            }
+        done
+    done
+done
+
+if [ "$PACKAGES_FOUND" -eq 0 ]; then
+    log "ERROR" "No Android packages found in gamedata/ or ./"
+    log "ERROR" "Please copy your The Sims 3 APK/OBB to gamedata/"
+    exit 1
+fi
+
+log "OK" "Found $PACKAGES_FOUND package(s): ${PACKAGE_NAMES[*]}"
+
+# Phase 2: Validating
+update_phase
+
+# Validate recipe
+if [ ! -f "$SIMS3_RECIPE" ]; then
+    log "ERROR" "Recipe not found: $SIMS3_RECIPE"
+    exit 1
+fi
+
+log "OK" "Recipe loaded: $SIMS3_RECIPE"
+
+# Phase 3: Extracting
+update_phase
+
+# Parse recipe and run extraction
+log "INFO" "Starting extraction process..."
+
+total_stages=$(jq -r '.extract | length' "$SIMS3_RECIPE" 2>/dev/null)
+[ "$total_stages" = "null" ] && total_stages=1
+
+current_stage=1
+stage_time_start=$(date +%s)
+
+# Run Gatito extractor with NxExtract progress
+log "INFO" "Starting Gatito extractor..."
+
+{
+    python3 "$(dirname "$0")/gatito-extract-v3.py" "$SIMS3_RECIPE" \
+        --game-dir "$GAME_DIR" \
+        --input "${PACKAGE_NAMES[@]}" \
+        2>&1 | while IFS= read -r line; do
+        # Parse Gatito progress output
+        if [[ $line =~ GATITO_STAGE\|([0-9]+)\|(.*) ]]; then
+            local progress="${BASH_REMATCH[1]}"
+            local message="${BASH_REMATCH[2]}"
+            
+            # Convert to NxExtract-style progress
+            local overall_progress=$((current_stage * 100 / total_stages))
+            show_progress "$progress" "100" "$message"
+        else
+            # Log other messages
+            echo "$line"
+        fi
+    done
+} > "$LOG_FILE" 2>&1 &
+
+EXTRACT_PID=$!
+
+# Monitor progress and timeout
+while kill -0 "$EXTRACT_PID" 2>/dev/null; do
+    current_time=$(date +%s)
+    elapsed=$((current_time - SIMS3_NXEXTRACT_START_TIME))
+    
+    if [ "$elapsed" -ge "$TIMEOUT" ]; then
+        log "ERROR" "Extraction timeout after ${TIMEOUT}s"
+        kill -TERM "$EXTRACT_PID" 2>/dev/null
+        sleep 5
+        kill -KILL "$EXTRACT_PID" 2>/dev/null || true
+        exit 1
+    fi
+    
+    # Show elapsed time
+    printf "\r\033[K"
+    printf "⏱️  Time: %02d:%02d" $((elapsed / 60)) $((elapsed % 60))
+    sleep 1
+done
+
+wait "$EXTRACT_PID"
+EXTRACT_RC=$?
+
+if [ "$EXTRACT_RC" -ne 0 ]; then
+    log "ERROR" "Extraction failed with exit code $EXTRACT_RC"
+    exit $EXTRACT_RC
+fi
+
+log "OK" "Extraction completed successfully"
+
+# Phase 4: Validation
+update_phase
+
+# Verify extraction
+GAME_IMAGE="$GAME_DIR/game/game.s3e.unpacked"
+ASSET_DIR="$GAME_DIR/game/assets"
+
+if [ ! -f "$GAME_IMAGE" ]; then
+    log "ERROR" "Game image not found: $GAME_IMAGE"
+    exit 1
+fi
+
+# Check S3E header
+S3E_HEADER=$(od -An -tx1 -N4 "$GAME_IMAGE" | tr -d ' \n')
+if [ "$S3E_HEADER" != "58453355" ]; then
+    log "ERROR" "Invalid S3E header: $S3E_HEADER (expected: 58453355)"
+    exit 1
+fi
+
+GAME_SIZE=$(wc -c < "$GAME_IMAGE")
+log "OK" "S3E validated: ${GAME_SIZE} bytes, header: $S3E_HEADER"
+
+if [ -d "$ASSET_DIR" ] && [ -n "$(ls -A "$ASSET_DIR" 2>/dev/null)" ]; then
+    ASSET_COUNT=$(find "$ASSET_DIR" -type f | wc -l)
+    log "OK" "Assets validated: $ASSET_COUNT files"
+else
+    log "ERROR" "Assets directory missing or empty"
+    exit 1
+fi
+
+# Final phase
+update_phase
+
+# Cleanup
+rm -rf "$NXEXTRACT_WORKSPACE"
+
+# Success
+log "OK" "=== EXTRACTION COMPLETE ==="
+log "INFO" "GameData: $GAME_DIR/game/"
+log "INFO" "S3E: $GAME_IMAGE"
+log "INFO" "Assets: $ASSET_DIR"
+log "INFO" "Total time: $((current_time - SIMS3_NXEXTRACT_START_TIME))s"
+
+echo ""
+echo "✅ The Sims 3 data extraction completed successfully!"
+echo "🎮 Ready to launch with: $GAME_DIR/run.sh"
+
+exit 0

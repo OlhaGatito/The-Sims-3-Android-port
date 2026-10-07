@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Gatito-Extrator graphical test UI.
+"""Gatito-Extrator graphical test UI - NxExtract pattern.
 
-The extractor remains a Python backend. This front-end deliberately does not
-use printf/ANSI as its primary display: it tries SDL2 first and falls back to
-/dev/fb0 with a small software renderer. Controller/input events are read from
-SDL2 or Linux input devices, so a handheld button is not treated as stdin.
+This UI follows the NxExtract visual style with progress bars, phases, and
+error reporting. The extractor remains a Python backend.
 """
 import argparse
 import ctypes

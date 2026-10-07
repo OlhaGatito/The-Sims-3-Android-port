@@ -220,20 +220,22 @@ fi
 NXDIR=""
 [ -f "$GAMEDIR/gatito-extract/run-extractor.sh" ] && NXDIR="$GAMEDIR/gatito-extract"
 [ -z "$NXDIR" ] && [ -f "$GAMEDIR/run-extractor.sh" ] && NXDIR="$GAMEDIR"
+# NxExtract owner-data phase (NextOS pattern) - Gatito Extractor
 NXEXTRACT_REQUESTED=1
 if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
   NXEXTRACT_INCOMPLETE=0
   [ -n "$NXDIR" ] && [ ! -L "$NXDIR" ] || NXEXTRACT_INCOMPLETE=1
   for nxfile in "$GAMEDIR/extractor.json" "$NXDIR/run-extractor.sh" \
-    "$NXDIR/gatito-extract-v3.py" "$NXDIR/nxextract-runtime-env.sh"; do
+    "$NXDIR/nxextract-runtime-env.sh" "$NXDIR/nxextract-ui"; do
     [ -f "$nxfile" ] && [ -s "$nxfile" ] && [ ! -L "$nxfile" ] || NXEXTRACT_INCOMPLETE=1
   done
   if [ "$NXEXTRACT_INCOMPLETE" = 1 ]; then
-    echo "ERROR: incomplete NXExtract integration"
+    echo "ERROR: incomplete NxExtract integration"
     nxbootstrap_finish
     exit 1
   fi
   $ESUDO chmod +x "$NXDIR"/*.sh 2>/dev/null || true
+  $ESUDO chmod +x "$NXDIR/nxextract-ui" 2>/dev/null || true
   NXEXTRACT_GAME_DIR="$GAMEDIR" \
     bash "$NXDIR/run-extractor.sh" || {
       echo "ERROR: game data installation did not complete"

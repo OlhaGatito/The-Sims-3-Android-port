@@ -235,7 +235,7 @@ if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
     exit 1
   fi
   $ESUDO chmod +x "$NXDIR"/*.sh 2>/dev/null || true
-  $ESUDO chmod +x "$NXDIR/nxextract-ui" 2>/dev/null || true
+  $ESUDO chmod +x "$NXDIR/nxextract-ui-ptbr" 2>/dev/null || true
   NXEXTRACT_GAME_DIR="$GAMEDIR" \
     bash "$NXDIR/run-extractor.sh" || {
       echo "ERROR: game data installation did not complete"
@@ -314,7 +314,9 @@ export NXCOMPAT_ENABLED_QUIRKS='video.fbcon-fallback'
 export NXCOMPAT_RUNTIME_REPORT=log-and-logo
 
 # S3E Extension stubs via LD_PRELOAD (NextOS LD_PRELOAD pattern)
+# Use armhf stubs (ARMv7) as primary since our loader is ARMv7
 STUBS_DIR="$GAMEDIR/libs.armhf"
+# Fallback to aarch64 stubs if available and we're on AArch64
 [ "$(uname -m)" = "aarch64" ] && [ -d "$GAMEDIR/libs.aarch64" ] && STUBS_DIR="$GAMEDIR/libs.aarch64"
 STUBS_PRELOAD=""
 for stub in libs3eAndroidJNI.so libs3eVFS.so; do

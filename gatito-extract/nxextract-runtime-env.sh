@@ -61,7 +61,7 @@ log() {
 }
 
 # Log environment setup
-log "INFO" "NxExtract Runtime Environment"
+log "INFO" "NxExtract Runtime Environment - Gatito Variant"
 log "INFO" "CFW: $NXEXTRACT_CFW"
 log "INFO" "Device: $NXEXTRACT_DEVICE ($NXEXTRACT_ARCH)"
 log "INFO" "Kernel: $NXEXTRACT_KERNEL"

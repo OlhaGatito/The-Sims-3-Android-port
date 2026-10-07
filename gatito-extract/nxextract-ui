@@ -173,25 +173,33 @@ log "INFO" "Starting Gatito extractor..."
 EXTRACT_PID=$!
 
 # Monitor progress and timeout
-while kill -0 "$EXTRACT_PID" 2>/dev/null; do
-    current_time=$(date +%s)
-    elapsed=$((current_time - SIMS3_NXEXTRACT_START_TIME))
+monitor_extraction() {
+    local extract_pid="$1"
+    local timeout_val="$2"
     
-    if [ "$elapsed" -ge "$TIMEOUT" ]; then
-        log "ERROR" "Extraction timeout after ${TIMEOUT}s"
-        kill -TERM "$EXTRACT_PID" 2>/dev/null
-        sleep 5
-        kill -KILL "$EXTRACT_PID" 2>/dev/null || true
-        exit 1
-    fi
+    while kill -0 "$extract_pid" 2>/dev/null; do
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - SIMS3_NXEXTRACT_START_TIME))
+        
+        if [ "$elapsed" -ge "$timeout_val" ]; then
+            log "ERROR" "Extraction timeout after ${timeout_val}s"
+            kill -TERM "$extract_pid" 2>/dev/null
+            sleep 5
+            kill -KILL "$extract_pid" 2>/dev/null || true
+            return 1
+        fi
+        
+        # Show elapsed time
+        printf "\r\033[K"
+        printf "⏱️  Time: %02d:%02d" $((elapsed / 60)) $((elapsed % 60))
+        sleep 1
+    done
     
-    # Show elapsed time
-    printf "\r\033[K"
-    printf "⏱️  Time: %02d:%02d" $((elapsed / 60)) $((elapsed % 60))
-    sleep 1
-done
+    wait "$extract_pid"
+    return $?
+}
 
-wait "$EXTRACT_PID"
+monitor_extraction "$EXTRACT_PID" "$TIMEOUT"
 EXTRACT_RC=$?
 
 if [ "$EXTRACT_RC" -ne 0 ]; then
@@ -242,7 +250,9 @@ log "OK" "=== EXTRACTION COMPLETE ==="
 log "INFO" "GameData: $GAME_DIR/game/"
 log "INFO" "S3E: $GAME_IMAGE"
 log "INFO" "Assets: $ASSET_DIR"
-log "INFO" "Total time: $((current_time - SIMS3_NXEXTRACT_START_TIME))s"
+
+local end_time=$(date +%s)
+log "INFO" "Total time: $((end_time - SIMS3_NXEXTRACT_START_TIME))s"
 
 echo ""
 echo "✅ The Sims 3 data extraction completed successfully!"

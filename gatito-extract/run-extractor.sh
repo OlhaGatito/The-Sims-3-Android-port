@@ -62,9 +62,10 @@ if [ -f "$GAME_IMAGE" ] && [ -d "$ASSET_DIR" ] && [ -n "$(ls -A "$ASSET_DIR" 2>/
 fi
 
 # Run extraction with NxExtract UI
-log "INFO" "Starting NxExtract extraction..."
+log "INFO" "Iniciando Gatito Extractor com interface NxExtract (PT-BR)..."
 
-"$SCRIPT_DIR/nxextract-ui" "$RECIPE_FILE" "$GAME_DIR" "$NXEXTRACT_LOG" "1800"
+# Use Portuguese NxExtract UI
+"$SCRIPT_DIR/nxextract-ui-ptbr" "$RECIPE_FILE" "$GAME_DIR" "$NXEXTRACT_LOG" "1800"
 EXTRACT_RC=$?
 
 if [ "$EXTRACT_RC" -eq 0 ]; then

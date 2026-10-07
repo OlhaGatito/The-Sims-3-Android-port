@@ -129,6 +129,9 @@ fi
 # ============================================================
 # REUSE EXISTING EXTRACTED DATA (handles dual mount paths)
 # ============================================================
+# ============================================================
+# REUSE EXISTING EXTRACTED DATA (handles dual mount paths)
+# ============================================================
 reuse_existing_game_data() {
     [ -f "$GAME_IMAGE" ] && [ -d "$ASSET_DIR" ] && return 0
     
@@ -161,6 +164,11 @@ reuse_existing_game_data() {
                     fi
                 else
                     echo "[WARN] Skipping data from $_cand: game.s3e.unpacked corrupted (size=$src_size header=$src_header)"
+                    # Se o source é válido mas aqui não, tenta extrair novamente
+                    if [ "$src_size" -ge 1048576 ] && [ "$src_header" = "58453355" ]; then
+                        echo "[INFO] Source is valid, forcing re-extraction anyway"
+                        break
+                    fi
                 fi
             else
                 echo "[WARN] Skipping data from $_cand: game.s3e.unpacked empty"
@@ -210,17 +218,42 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
     fi
     
     echo "[INFO] Starting Gatito UI (15 min timeout)..." >>"$GATITO_LOG" 2>&1
-    timeout 900 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
-    EXTRACT_RC=$?
-    echo "[Gatito] launcher exit code=$EXTRACT_RC" >>"$GATITO_LOG" 2>&1
     
-    if [ "$EXTRACT_RC" -ne 0 ]; then
-        echo "[WARN] Gatito UI exit=$EXTRACT_RC (timed out or failed)" >>"$GATITO_LOG" 2>&1
-        if [ ! -f "$GAME_IMAGE" ]; then
-            echo "[FATAL] Game image missing after extraction, cannot continue"
-            exit "$EXTRACT_RC"
+    # Tenta extrator duas vezes em caso de falha
+    for attempt in 1 2; do
+        echo "[INFO] Extraction attempt $attempt/2..." >>"$GATITO_LOG" 2>&1
+        timeout 900 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
+        EXTRACT_RC=$?
+        echo "[Gatito] launcher exit code=$EXTRACT_RC (attempt $attempt)" >>"$GATITO_LOG" 2>&1
+        
+        if [ "$EXTRACT_RC" -eq 0 ] && [ -f "$GAME_IMAGE" ] && [ -s "$GAME_IMAGE" ]; then
+            # Valida S3E após extração bem sucedida
+            local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
+            local header=$(od -An -tx1 -N4 "$GAME_IMAGE" 2>/dev/null | tr -d ' \n')
+            if [ "$file_size" -ge 1048576 ] && [ "$header" = "58453355" ]; then
+                echo "[INFO] Extraction successful, S3E valid (size=$file_size header=$header)" >>"$GATITO_LOG" 2>&1
+                break
+            else
+                echo "[WARN] Extraction seemed successful but S3E invalid (size=$file_size header=$header), retrying..." >>"$GATITO_LOG" 2>&1
+                rm -f "$GAME_IMAGE"
+                [ "$attempt" -eq 2 ] && {
+                    echo "[FATAL] Both extractions failed - S3E header invalid" >>"$GATITO_LOG" 2>&1
+                    exit "$EXTRACT_RC"
+                }
+            fi
+        elif [ "$EXTRACT_RC" -ne 0 ]; then
+            echo "[WARN] Gatito UI exit=$EXTRACT_RC (attempt $attempt)" >>"$GATITO_LOG" 2>&1
+            [ "$attempt" -eq 2 ] && {
+                echo "[FATAL] Both extraction attempts failed" >>"$GATITO_LOG" 2>&1
+                exit "$EXTRACT_RC"
+            }
+            echo "[INFO] Will retry extraction..." >>"$GATITO_LOG" 2>&1
         fi
-        echo "[INFO] Game image exists despite UI exit code, proceeding..." >>"$GATITO_LOG" 2>&1
+    done
+    
+    if [ ! -f "$GAME_IMAGE" ]; then
+        echo "[FATAL] Game image missing after all extraction attempts, cannot continue"
+        exit 1
     fi
 fi
 

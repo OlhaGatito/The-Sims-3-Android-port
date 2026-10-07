@@ -1,5 +1,5 @@
 #!/bin/bash
-# The Sims 3 — Gatito Extractor UI launcher
+# The Sims 3 — Gatito Extractor UI launche
 # Called by the PortMaster runtime after the port has been installed.
 # The UI requires the recipe, game directory, engine and log; always provide them.
 set +e

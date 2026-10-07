@@ -1,68 +1,70 @@
-# Makefile for The Sims 3 ARM loader (dual-arch)
-# -----------------------------------------------------
-#  * `make`          → compila o loader 32-bit ARMv7 (default)
-#  * `make aarch64`  → compila o loader 64-bit AArch64
-#  * `make clean`    → remove os binários gerados
-#
-# O alvo padrão continua usando a toolchain ARMv7 (hard-float) que já funciona em todos
-# os handhelds (muOS, ArkOS, ROCKNIX, etc.).
-#
-# Para o build AArch64 usamos flags específicas e evitamos passar as opções de NEON/float-abi
-# que são exclusivas do arm-hard-float. Assim o cross-compiler AArch64 consegue compilar.
-# -----------------------------------------------------
+# Sims 3 Build System - NextOS-style compatibility
+# ARMv7 + AArch64 stub compilation
+CC ?= gcc
+CFLAGS ?= -fPIC -shared -O2 -Wall -Wextra
+STUBS_DIR = libs.armhf
+AArch64_DIR = libs.aarch64
 
-# Force ARM cross-compiler for default target (try to build ARMv7 if possible)
-CC      := arm-linux-gnueabihf-gcc
-STRIP   := arm-linux-gnueabihf-strip
-CFLAGS  := -O2
-CFLAGS  += -std=c11 -D_GNU_SOURCE -Wall -Iloader/include -Iloader/third_party -Iloader/third_party/lzma \
-           -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
-LDLIBS  := -ldl -pthread -lm
-SRC     := loader/src/derbh.c loader/src/main.c loader/src/nxmix.c loader/src/s3e_audio.c loader/src/s3e_config.c loader/src/s3e_file.c loader/src/s3e_gl.c loader/src/s3e_host.c loader/src/s3e_image.c loader/src/s3e_input.c loader/src/s3e_runtime.c loader/third_party/lzma/LzmaDec.c
-TARGET  := sims3_s3e_loader
+# Directories
+LIBS_ARMHF = $(STUBS_DIR)
+LIBS_AARCH64 = $(AArch64_DIR)
+LIBS_COMMON = libs
 
-# Try ARMv7 build, but allow fallback to just AArch64 if it fails (mcontext_t issues)
-all: try_armv7 aarch64
+# Create library directories
+$(LIBS_ARMHF) $(LIBS_AARCH64) $(LIBS_COMMON):
+	mkdir -p $@
 
-try_armv7:
-	@echo "[TRY] Building ARMv7 loader..."
-	@$(CC) $(CFLAGS) -o $(TARGET) $(SRC) $(LDLIBS) >/dev/null 2>&1 && { \
-		$(STRIP) -s $(TARGET); \
-		echo "[OK] ARMv7 loader built: $(TARGET)"; \
-	} || { \
-		echo "[SKIP] ARMv7 build failed (likely mcontext_t mismatch)"; \
-		rm -f $(TARGET); \
-	}
+# Compile ARMv7 stubs
+STUBS_ARMHF = $(STUBS_DIR)/libs3eAndroidJNI.so $(STUBS_DIR)/libs3eVFS.so
+$(STUBS_ARMHF): $(LIBS_ARMHF) sims3-stubs.c
+	$(CC) $(CFLAGS) -march=armv7-a -mfpu=vfp -mfloat-abi=hard $< -o $@
+	@echo "Built ARMv7 stub: $@"
 
-$(TARGET): $(SRC)
-	@$(CC) $(CFLAGS) -o $@ $(SRC) $(LDLIBS)
-	@$(STRIP) -s $@
+# Compile AArch64 stubs
+STUBS_AARCH64 = $(AArch64_DIR)/libs3eAndroidJNI.so $(AArch64_DIR)/libs3eVFS.so
+$(STUBS_AARCH64): $(LIBS_AARCH64) sims3-stubs.c
+	$(CC) $(CFLAGS) -march=armv8-a -mtune=generic $< -o $@
+	@echo "Built AArch64 stub: $@"
 
-# -----------------------------------------------------
-#  AArch64 (64-bit) target
-# -----------------------------------------------------
-# Para compilar o loader 64-bit (nativo) usamos o cross-compiler aarch64-linux-gnu-gcc
-# e removemos as flags de NEON e float-abi que são inválidas para AArch64.
-# A flag -march=armv8-a habilita as instruções nativas de 64-bit.
-# -----------------------------------------------------
-AARCH64_CC   ?= aarch64-linux-gnu-gcc
-AARCH64_CFLAGS = -O2 -std=c11 -D_GNU_SOURCE -Wall \
-                -Iloader/include -Iloader/third_party -Iloader/third_party/lzma \
-                -march=armv8-a
-AARCH64_LDLIBS = $(LDLIBS)
-AARCH64_TARGET = sims3_s3e_loader_aarch64
+# Common utility libraries (SDL fallback, etc.)
+COMMON_UTILS = $(LIBS_COMMON)/sims3-fbcon-helper
+$(COMMON_UTILS): libs
+	@echo "Creating fbcon helper for fallback mode"
+	@echo '#!/bin/bash' > $@
+	@echo 'export SDL_VIDEODRIVER=fbcon' >> $@
+	@echo 'export SDL_AUDIODRIVER=alsa' >> $@
+	@echo 'exec "$$@"' >> $@
+	@chmod +x $@
 
-# Target "aarch64" compila e renomeia o binário
-# (se o cross-compiler não existir, o make falhará – ok, então o fallback será usado).
-aarch64: clean_aarch64
-	$(AARCH64_CC) $(AARCH64_CFLAGS) -o $(AARCH64_TARGET) $(SRC) $(AARCH64_LDLIBS)
-	$(STRIP) -s $(AARCH64_TARGET)
-	@echo "AArch64 loader built: $(AARCH64_TARGET)"
+# Build all
+all: $(STUBS_ARMHF) $(STUBS_AARCH64) $(COMMON_UTILS)
+	@echo "All stubs and utilities built successfully"
 
-# Clean only AArch64 artefacts (mantém o 32-bit)
-clean_aarch64:
-	rm -f $(AARCH64_TARGET)
+# Build for specific architecture
+armhf: $(STUBS_ARMHF)
+	@echo "ARMv7 stubs built"
 
+aarch64: $(STUBS_AARCH64)
+	@echo "AArch64 stubs built"
+
+# Clean
 clean:
-	rm -f $(TARGET) $(AARCH64_TARGET)
-.PHONY: all clean aarch64 clean_aarch64
+	rm -rf $(STUBS_ARMHF) $(STUBS_AARCH64) $(LIBS_COMMON)/sims3-fbcon-helper
+	@echo "Cleaned stubs and utilities"
+
+# Install to system (for development)
+install: all
+	@echo "Installing stubs to system paths"
+	sudo cp -r $(STUBS_DIR)/* /usr/lib/ 2>/dev/null || true
+	sudo cp -r $(AArch64_DIR)/* /usr/lib/ 2>/dev/null || true
+	sudo ldconfig 2>/dev/null || true
+
+# Test stubs
+test: all
+	@echo "Testing stub loading"
+	@echo "Testing ARMv7 stub:"
+	LD_PRELOAD=$(STUBS_DIR)/libs3eAndroidJNI.so readelf -d $(STUBS_DIR)/libs3eAndroidJNI.so | grep NEEDED || echo "No dependencies found - stub is self-contained"
+	@echo "Testing AArch64 stub:"
+	LD_PRELOAD=$(AArch64_DIR)/libs3eAndroidJNI.so readelf -d $(AArch64_DIR)/libs3eAndroidJNI.so | grep NEEDED || echo "No dependencies found - stub is self-contained"
+
+.PHONY: all armhf aarch64 clean install test

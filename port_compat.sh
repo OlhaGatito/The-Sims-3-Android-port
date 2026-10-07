@@ -98,8 +98,60 @@ port_detect_video() {
   [ -e /dev/fb0 ] && { port_log "framebuffer=/dev/fb0"; cat /sys/class/graphics/fb0/name 2>/dev/null || true; }
 }
 
+port_detect_sdl() {
+  local sdl_found=false
+  # Check 32-bit SDL2 availability (critical for ARMv7 loader on AArch64)
+  for p in /usr/lib/arm-linux-gnueabihf/libSDL2-2.0.so.0 \
+           /lib/arm-linux-gnueabihf/libSDL2-2.0.so.0 \
+           /usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0 \
+           /lib/aarch64-linux-gnu/libSDL2-2.0.so.0; do
+    [ -f "$p" ] && { sdl_found=true; port_log "SDL2 found: $p"; break; }
+  done
+  [ "$sdl_found" = false ] && port_log "WARN: SDL2 32-bit NOT found - UI may fail"
+  export PORT_SDL2_AVAILABLE="$sdl_found"
+}
+
+port_detect_capabilities() {
+  local caps=""
+  [ -e /dev/dri/card0 ] && caps="$caps graphics.gles2 graphics.egl graphics.egl-config graphics.drawable"
+  [ -e /dev/fb0 ] && caps="$caps graphics.window"
+  [ -d /dev/snd ] && caps="$caps audio.output-open"
+  [ -c /dev/input/js0 ] || [ -c /dev/input/event0 ] && caps="$caps input.controller-mapping input.controller-api"
+  export PORT_CAPABILITIES="$caps"
+  port_log "capabilities=$PORT_CAPABILITIES"
+}
+
+port_fallback_mode() {
+  local mode="${1:-safe}"
+  case "$mode" in
+    safe|minimal)
+      port_log "Activating SAFE fallback mode: fbcon + alsa"
+      export SDL_VIDEODRIVER=fbcon
+      export SDL_AUDIODRIVER=alsa
+      export SDL_RENDER_DRIVER=software
+      export SDL_HINT_RENDER_DRIVER=software
+      export SDL_HINT_VIDEO_DRIVER=fbcon
+      ;;
+    drm)
+      port_log "Activating DRM fallback mode: kmsdrm + alsa"
+      export SDL_VIDEODRIVER=kmsdrm
+      export SDL_AUDIODRIVER=alsa
+      ;;
+    wayland)
+      port_log "Activating Wayland fallback mode"
+      export SDL_VIDEODRIVER=wayland
+      export SDL_AUDIODRIVER=alsa
+      ;;
+    *)
+      port_log "Unknown fallback mode: $mode"
+      ;;
+  esac
+}
+
 port_detect_runtime() {
   port_detect_audio
   port_detect_video
+  port_detect_sdl
+  port_detect_capabilities
   port_log "display=${DISPLAY:-unset} wayland=${WAYLAND_DISPLAY:-unset} resolution=${DISPLAY_WIDTH:-${SDL_VIDEO_WIDTH:-unknown}}x${DISPLAY_HEIGHT:-${SDL_VIDEO_HEIGHT:-unknown}}"
 }

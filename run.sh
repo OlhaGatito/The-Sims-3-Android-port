@@ -248,6 +248,19 @@ if [ -n "${EXTRACT_RC:-}" ] && [ "$EXTRACT_RC" -eq 0 ]; then
 fi
 
 # ============================================================
+# S3E EXTENSION STUBS (LD_PRELOAD)
+# ============================================================
+# Preload missing S3E extensions to prevent crashes
+S3E_STUBS_DIR="$GAMEDIR/libs.armhf"
+[ -d "$GAMEDIR/libs.aarch64" ] && S3E_STUBS_DIR="$GAMEDIR/libs.aarch64"
+STUBS_PRELOAD=""
+for stub in libs3eAndroidJNI.so libs3eVFS.so; do
+    [ -f "$S3E_STUBS_DIR/$stub" ] && STUBS_PRELOAD="${STUBS_PRELOAD:+$STUBS_PRELOAD:}$S3E_STUBS_DIR/$stub"
+done
+[ -n "$STUBS_PRELOAD" ] && export LD_PRELOAD="${STUBS_PRELOAD}${LD_PRELOAD:+:$LD_PRELOAD}"
+echo "[INFO] S3E Stubs: ${STUBS_PRELOAD:-none found}"
+
+# ============================================================
 # LIBRARY PATHS
 # ============================================================
 LIB_PATHS="$GAMEDIR/libs.armhf"
@@ -261,18 +274,66 @@ export LD_LIBRARY_PATH="$LIB_PATHS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export SIMS3_RETRY_FALLBACK="${SIMS3_RETRY_FALLBACK:-1}"
 
 # ============================================================
-# PAGEFLIP ERROR DETECTION -> FORCE FBCON
+# SMART FALLBACK DETECTION (NextOS-style)
 # ============================================================
-GATITO_LAUNCH_LOG="$LOGDIR/gatito-launch.log"
-if [ -f "$GATITO_LAUNCH_LOG" ] && grep -q "ERROR: Could not queue pageflip" "$GATITO_LAUNCH_LOG" 2>/dev/null; then
-    echo "[WARN] Detected pageflip -22 in Gatito UI log; forcing fbcon..."
-    export SDL_VIDEODRIVER=fbcon
-    sleep 1
-elif [ -f "$LOG" ] && grep -q "ERROR: Could not queue pageflip" "$LOG" 2>/dev/null; then
-    echo "[WARN] Detected pageflip -22 in runtime log; forcing fbcon..."
-    export SDL_VIDEODRIVER=fbcon
-    sleep 1
-fi
+detect_smart_fallback() {
+    local fallback="auto"
+    
+    # Check for previous failures in logs
+    if [ -f "$LOG" ] && grep -q "ERROR: Could not queue pageflip" "$LOG" 2>/dev/null; then
+        fallback="fbcon"
+    elif [ -f "$LOGDIR/gatito-launch.log" ] && grep -q "ERROR: Could not queue pageflip" "$LOGDIR/gatito-launch.log" 2>/dev/null; then
+        fallback="fbcon"
+    fi
+    
+    # Check for S3E extension errors
+    if [ -f "$LOG" ] && grep -q "s3eAndroidJNI\|s3eVFS\|dlopen.*failed\|extension.*missing" "$LOG" 2>/dev/null; then
+        fallback="fbcon"  # Safe mode for extension issues too
+    fi
+    
+    # Check hardware capabilities
+    if [ -e /dev/fb0 ] && [ ! -e /dev/dri/card0 ]; then
+        fallback="fbcon"
+    fi
+    
+    # Check if running under Wayland without GPU
+    if [ -n "${WAYLAND_DISPLAY:-}" ] && [ ! -e /dev/dri/renderD128 ]; then
+        fallback="fbcon"
+    fi
+    
+    echo "$fallback"
+}
+
+FALLBACK_MODE=$(detect_smart_fallback)
+case "$FALLBACK_MODE" in
+    fbcon)
+        echo "[WARN] Smart fallback: forcing fbcon mode"
+        export SDL_VIDEODRIVER=fbcon
+        export SDL_AUDIODRIVER=alsa
+        export SDL_RENDER_DRIVER=software
+        export SDL_HINT_RENDER_DRIVER=software
+        export SDL_HINT_VIDEO_DRIVER=fbcon
+        sleep 1
+        ;;
+    kmsdrm)
+        echo "[INFO] Using DRM/KMS mode"
+        export SDL_VIDEODRIVER=kmsdrm
+        export SDL_AUDIODRIVER=alsa
+        ;;
+    wayland)
+        echo "[INFO] Using Wayland mode"
+        export SDL_VIDEODRIVER=wayland
+        export SDL_AUDIODRIVER=alsa
+        ;;
+    *)
+        # Auto-detect based on port_compat
+        if [ -n "${PORT_SDL2_AVAILABLE:-}" ] && [ "$PORT_SDL2_AVAILABLE" = "false" ]; then
+            echo "[WARN] SDL2 not available, using fbcon fallback"
+            export SDL_VIDEODRIVER=fbcon
+            export SDL_AUDIODRIVER=alsa
+        fi
+        ;;
+esac
 
 # ============================================================
 # RESOLUTION & SDL SETTINGS

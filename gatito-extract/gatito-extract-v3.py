@@ -237,20 +237,33 @@ def main():
         target = game / safe(root)
         old = target.with_name(target.name + ".gatito-old")
 
+        # Fix nested game folder issue: move contents, not stage
+        inner_stage = stage / root
+        src_to_move = inner_stage if inner_stage.exists() else stage
+
         if old.exists():
             shutil.rmtree(old)
         if target.exists():
             target.rename(old)
 
         try:
-            stage.rename(target)
-        except Exception:
+            # Move contents to target, creating directories as needed
+            for item in src_to_move.iterdir():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if item.is_dir():
+                    shutil.copytree(item, target / item.name, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(item, target)
+        except Exception as e:
+            # Restore backup if move fails
             if old.exists():
                 old.rename(target)
-            raise
+            raise SystemExit(f"COMMIT FAILED: could not move stage contents to target: {e}")
 
+        # Remove old backup and stage directory
         if old.exists():
             shutil.rmtree(old)
+        shutil.rmtree(stage, ignore_errors=True)
 
         emit(100, "Pronto: dados extraídos e validados")
         return 0

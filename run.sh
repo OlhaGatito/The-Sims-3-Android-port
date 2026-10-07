@@ -34,6 +34,10 @@ if [ -z "${CFW_NAME:-}" ]; then
     { [ -d /opt/system/bin ] && [ -f "/opt/system/Advanced/Firmware Version.txt" ]; } && CFW_NAME=arkos
     [ -f /opt/bin/emulationstation ] && CFW_NAME=rocknix
     grep -qi "nextos" /etc/os-release 2>/dev/null && CFW_NAME=nextos
+    # ROCKNIX/Aurknix detection via os-release or directory structure
+    [ "$CFW_NAME" = "unknown" ] && grep -qi "rocknix" /etc/os-release 2>/dev/null && CFW_NAME=rocknix
+    [ "$CFW_NAME" = "unknown" ] && grep -qi "aurknix" /etc/os-release 2>/dev/null && CFW_NAME=rocknix
+    [ "$CFW_NAME" = "unknown" ] && [ -d /storage/roms ] && [ -f /opt/bin/emulationstation ] && CFW_NAME=rocknix
 fi
 export CFW_NAME
 
@@ -109,7 +113,7 @@ echo "[OK] Loader verified: $LOADER"
 # ============================================================
 if [ "$ARCH" = "aarch64" ]; then
     if command -v readelf >/dev/null 2>&1; then
-        INTERP=$(readelf -l "$LOADER" 2>/dev/null | grep 'INTERP' | awk '{print $4}' | tr -d '[]')
+        INTERP=$(readelf -l "$LOADER" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \([^]]*\).*/\1/p')
         if [ -n "$INTERP" ] && [ ! -f "$INTERP" ]; then
             echo "[WARN] Loader 32-bit requires interpreter $INTERP (not found)"
             for p in /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux-armhf.so.3 /usr/lib/arm-linux-gnueabihf/ld-linux-armhf.so.3; do
@@ -127,16 +131,40 @@ fi
 # ============================================================
 reuse_existing_game_data() {
     [ -f "$GAME_IMAGE" ] && [ -d "$ASSET_DIR" ] && return 0
+    
+    # Verifica integridade do game.s3e.unpacked local
+    if [ -f "$GAME_IMAGE" ] && [ -s "$GAME_IMAGE" ]; then
+        local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
+        if [ "$file_size" -lt 1048576 ]; then  # 1MB minimum
+            echo "[WARN] game.s3e.unpacked seems corrupted or incomplete ($file_size bytes)"
+            echo "[INFO] Removing and forcing re-extraction"
+            rm -f "$GAME_IMAGE"
+        fi
+    fi
+    
     for _cand in ${SIMS3_ALT_DATADIRS:-/storage/roms/ports/sims3 /storage/games-external/ports/sims3 /roms/ports/sims3 /opt/roms/ports/sims3} /mnt/mmc/MUOS/PortMaster/ports/sims3; do
         [ "$_cand" = "$GAMEDIR" ] && continue
         if [ -f "$_cand/game/game.s3e.unpacked" ] && [ -d "$_cand/game/assets" ]; then
             echo "[INFO] Found extracted data in alternate install: $_cand"
-            mkdir -p "$GAME_DIR" 2>/dev/null || return 1
-            if cp -r "$_cand/game/." "$GAME_DIR/" 2>/dev/null; then
-                echo "[INFO] Copied data from $_cand/game to $GAME_DIR"
-                return 0
+            
+            # Copia apenas se game.s3e.unpacked for válido
+            if [ -s "$_cand/game/game.s3e.unpacked" ]; then
+                local src_size=$(wc -c < "$_cand/game/game.s3e.unpacked" 2>/dev/null || echo 0)
+                local src_header=$(od -An -tx1 -N4 "$_cand/game/game.s3e.unpacked" 2>/dev/null | tr -d ' \n')
+                if [ "$src_size" -ge 1048576 ] && [ "$src_header" = "58453355" ]; then
+                    mkdir -p "$GAME_DIR" 2>/dev/null || return 1
+                    if cp -r "$_cand/game/assets" "$GAME_DIR/" 2>/dev/null; then
+                        if cp "$_cand/game/game.s3e.unpacked" "$GAME_IMAGE" 2>/dev/null; then
+                            echo "[INFO] Copied valid data from $_cand/game to $GAME_DIR"
+                            return 0
+                        fi
+                    fi
+                else
+                    echo "[WARN] Skipping data from $_cand: game.s3e.unpacked corrupted (size=$src_size header=$src_header)"
+                fi
+            else
+                echo "[WARN] Skipping data from $_cand: game.s3e.unpacked empty"
             fi
-            return 1
         fi
     done
     return 1
@@ -146,6 +174,19 @@ reuse_existing_game_data || true
 # Re-evaluate paths after possible copy
 GAME_IMAGE="$GAME_DIR/game.s3e.unpacked"
 ASSET_DIR="$GAME_DIR/assets"
+
+# ============================================================
+# FINAL S3E HEADER VALIDATION
+# ============================================================
+if [ -f "$GAME_IMAGE" ]; then
+    local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
+    local header=$(od -An -tx1 -N4 "$GAME_IMAGE" 2>/dev/null | tr -d ' \n')
+    if [ "$file_size" -lt 1048576 ] || [ "$header" != "58453355" ]; then
+        echo "[WARN] S3E file invalid or too small: file_size=$file_size header=$header"
+        echo "[INFO] Removing corrupted file and forcing extraction"
+        rm -f "$GAME_IMAGE"
+    fi
+fi
 
 # ============================================================
 # FIRST LAUNCH: RUN EXTRACTOR IF NEEDED

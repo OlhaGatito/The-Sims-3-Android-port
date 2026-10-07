@@ -28,17 +28,18 @@ echo "START_TIME=$(date 2>/dev/null || true)"
 # ============================================================
 # CFW DETECTION
 # ============================================================
-if [ -z "${CFW_NAME:-}" ]; then
-    CFW_NAME=unknown
-    [ -f /opt/muos/bin/muos-version ] && CFW_NAME=muos
-    { [ -d /opt/system/bin ] && [ -f "/opt/system/Advanced/Firmware Version.txt" ]; } && CFW_NAME=arkos
-    [ -f /opt/bin/emulationstation ] && CFW_NAME=rocknix
-    grep -qi "nextos" /etc/os-release 2>/dev/null && CFW_NAME=nextos
-    # ROCKNIX/Aurknix detection via os-release or directory structure
-    [ "$CFW_NAME" = "unknown" ] && grep -qi "rocknix" /etc/os-release 2>/dev/null && CFW_NAME=rocknix
-    [ "$CFW_NAME" = "unknown" ] && grep -qi "aurknix" /etc/os-release 2>/dev/null && CFW_NAME=rocknix
-    [ "$CFW_NAME" = "unknown" ] && [ -d /storage/roms ] && [ -f /opt/bin/emulationstation ] && CFW_NAME=rocknix
-fi
+detect_cfw() {
+    local cfw=unknown
+    [ -f /opt/muos/bin/muos-version ] && cfw=muos
+    { [ -d /opt/system/bin ] && [ -f "/opt/system/Advanced/Firmware Version.txt" ]; } && cfw=arkos
+    [ -f /opt/bin/emulationstation ] && cfw=rocknix
+    grep -qi "nextos" /etc/os-release 2>/dev/null && cfw=nextos
+    [ "$cfw" = "unknown" ] && grep -qi "rocknix" /etc/os-release 2>/dev/null && cfw=rocknix
+    [ "$cfw" = "unknown" ] && grep -qi "aurknix" /etc/os-release 2>/dev/null && cfw=rocknix
+    [ "$cfw" = "unknown" ] && [ -d /storage/roms ] && [ -f /opt/bin/emulationstation ] && cfw=rocknix
+    echo "$cfw"
+}
+CFW_NAME=$(detect_cfw)
 export CFW_NAME
 
 # ============================================================
@@ -67,23 +68,16 @@ ASSET_DIR="$GAME_DIR/assets"
 # LOADER SELECTION (by kernel arch)
 # ============================================================
 select_loader() {
-    _arch="$1"
-    case "$_arch" in
+    case "$1" in
         aarch64|arm64)
-            if [ -x "$GAMEDIR/sims3_s3e_loader_aarch64" ]; then
-                echo "$GAMEDIR/sims3_s3e_loader_aarch64"
-                return 0
-            fi
+            [ -x "$GAMEDIR/sims3_s3e_loader_aarch64" ] && { echo "$GAMEDIR/sims3_s3e_loader_aarch64"; return; }
             echo "$GAMEDIR/sims3_s3e_loader"
-            return 0
             ;;
         arm*|aarch32)
             echo "$GAMEDIR/sims3_s3e_loader"
-            return 0
             ;;
         *)
             echo "$GAMEDIR/sims3_s3e_loader"
-            return 0
             ;;
     esac
 }
@@ -91,7 +85,7 @@ LOADER="$(select_loader "$ARCH")"
 echo "LOADER=$LOADER (arch=$ARCH)"
 
 # ============================================================
-# VERIFY LOADER EXISTS AND IS EXECUTABLE (critical!)
+# VERIFY LOADER
 # ============================================================
 if [ ! -f "$LOADER" ]; then
     echo "[FATAL] Loader not found: $LOADER"
@@ -102,105 +96,98 @@ fi
 if [ ! -x "$LOADER" ]; then
     chmod +x "$LOADER" 2>/dev/null || true
 fi
-if [ ! -x "$LOADER" ]; then
-    echo "[FATAL] Loader not executable: $LOADER"
-    exit 126
-fi
+[ ! -x "$LOADER" ] && { echo "[FATAL] Loader not executable: $LOADER"; exit 126; }
 echo "[OK] Loader verified: $LOADER"
 
 # ============================================================
 # 32-bit COMPAT CHECK (for ARMv7 loader on AArch64 host)
 # ============================================================
-if [ "$ARCH" = "aarch64" ]; then
-    if command -v readelf >/dev/null 2>&1; then
-        INTERP=$(readelf -l "$LOADER" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \([^]]*\).*/\1/p')
-        if [ -n "$INTERP" ] && [ ! -f "$INTERP" ]; then
-            echo "[WARN] Loader 32-bit requires interpreter $INTERP (not found)"
-            for p in /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux-armhf.so.3 /usr/lib/arm-linux-gnueabihf/ld-linux-armhf.so.3; do
-                [ -f "$p" ] && { echo "[OK] Found: $p"; break; }
-            done
-            export LD_LIBRARY_PATH="/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:/lib:/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-        fi
-    else
-        echo "[WARN] readelf not available, skipping interpreter check"
+if [ "$ARCH" = "aarch64" ] && command -v readelf >/dev/null 2>&1; then
+    INTERP=$(readelf -l "$LOADER" 2>/dev/null | sed -n 's/.*Requesting program interpreter: \([^]]*\).*/\1/p' | head -1)
+    if [ -n "$INTERP" ] && [ ! -f "$INTERP" ]; then
+        echo "[WARN] Loader 32-bit requires interpreter $INTERP (not found)"
+        for p in /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux-armhf.so.3 /usr/lib/arm-linux-gnueabihf/ld-linux-armhf.so.3; do
+            [ -f "$p" ] && { echo "[OK] Found: $p"; break; }
+        done
+        export LD_LIBRARY_PATH="/lib/arm-linux-gnueabihf:/usr/lib/arm-linux-gnueabihf:/lib:/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     fi
 fi
 
 # ============================================================
-# REUSE EXISTING EXTRACTED DATA (handles dual mount paths)
+# S3E VALIDATION HELPER
 # ============================================================
+validate_s3e() {
+    local f="$1"
+    [ -f "$f" ] && [ -s "$f" ] || return 1
+    local sz=$(wc -c < "$f" 2>/dev/null || echo 0)
+    local hdr=$(od -An -tx1 -N4 "$f" 2>/dev/null | tr -d ' \n')
+    [ "$sz" -ge 1048576 ] && [ "$hdr" = "58453355" ]
+}
+
 # ============================================================
-# REUSE EXISTING EXTRACTED DATA (handles dual mount paths)
+# CHECK IF GAME DATA ALREADY VALID (FAST PATH)
+# ============================================================
+if validate_s3e "$GAME_IMAGE" && [ -d "$ASSET_DIR" ] && [ -n "$(ls -A "$ASSET_DIR" 2>/dev/null)" ]; then
+    echo "[OK] Game data already valid, skipping extractor"
+    EXTRACT_RC=0
+else
+    echo "[INFO] Game data missing or invalid, will attempt to restore/extract"
+    EXTRACT_RC=1
+fi
+
+# ============================================================
+# REUSE EXISTING EXTRACTED DATA FROM ALTERNATE LOCATIONS
 # ============================================================
 reuse_existing_game_data() {
-    [ -f "$GAME_IMAGE" ] && [ -d "$ASSET_DIR" ] && return 0
-    
-    # Verifica integridade do game.s3e.unpacked local
-    if [ -f "$GAME_IMAGE" ] && [ -s "$GAME_IMAGE" ]; then
-        local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
-        if [ "$file_size" -lt 1048576 ]; then  # 1MB minimum
-            echo "[WARN] game.s3e.unpacked seems corrupted or incomplete ($file_size bytes)"
-            echo "[INFO] Removing and forcing re-extraction"
-            rm -f "$GAME_IMAGE"
-        fi
+    # Already valid? Nothing to do
+    validate_s3e "$GAME_IMAGE" && [ -d "$ASSET_DIR" ] && return 0
+
+    # Remove corrupted local file if exists
+    if [ -f "$GAME_IMAGE" ] && ! validate_s3e "$GAME_IMAGE"; then
+        local sz=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
+        local hdr=$(od -An -tx1 -N4 "$GAME_IMAGE" 2>/dev/null | tr -d ' \n')
+        echo "[WARN] Local game.s3e.unpacked invalid (size=$sz header=$hdr), removing"
+        rm -f "$GAME_IMAGE"
     fi
-    
+
+    # Search alternate locations
     for _cand in ${SIMS3_ALT_DATADIRS:-/storage/roms/ports/sims3 /storage/games-external/ports/sims3 /roms/ports/sims3 /opt/roms/ports/sims3} /mnt/mmc/MUOS/PortMaster/ports/sims3; do
         [ "$_cand" = "$GAMEDIR" ] && continue
-        if [ -f "$_cand/game/game.s3e.unpacked" ] && [ -d "$_cand/game/assets" ]; then
-            echo "[INFO] Found extracted data in alternate install: $_cand"
-            
-            # Copia apenas se game.s3e.unpacked for válido
-            if [ -s "$_cand/game/game.s3e.unpacked" ]; then
-                local src_size=$(wc -c < "$_cand/game/game.s3e.unpacked" 2>/dev/null || echo 0)
-                local src_header=$(od -An -tx1 -N4 "$_cand/game/game.s3e.unpacked" 2>/dev/null | tr -d ' \n')
-                if [ "$src_size" -ge 1048576 ] && [ "$src_header" = "58453355" ]; then
-                    mkdir -p "$GAME_DIR" 2>/dev/null || return 1
-                    if cp -r "$_cand/game/assets" "$GAME_DIR/" 2>/dev/null; then
-                        if cp "$_cand/game/game.s3e.unpacked" "$GAME_IMAGE" 2>/dev/null; then
-                            echo "[INFO] Copied valid data from $_cand/game to $GAME_DIR"
-                            return 0
-                        fi
-                    fi
-                else
-                    echo "[WARN] Skipping data from $_cand: game.s3e.unpacked corrupted (size=$src_size header=$src_header)"
-                    # Se o source é válido mas aqui não, tenta extrair novamente
-                    if [ "$src_size" -ge 1048576 ] && [ "$src_header" = "58453355" ]; then
-                        echo "[INFO] Source is valid, forcing re-extraction anyway"
-                        break
-                    fi
-                fi
-            else
-                echo "[WARN] Skipping data from $_cand: game.s3e.unpacked empty"
-            fi
+        local src_img="$_cand/game/game.s3e.unpacked"
+        local src_assets="$_cand/game/assets"
+        [ -f "$src_img" ] && [ -d "$src_assets" ] || continue
+
+        if validate_s3e "$src_img" && [ -n "$(ls -A "$src_assets" 2>/dev/null)" ]; then
+            echo "[INFO] Found valid extracted data in: $_cand"
+            mkdir -p "$GAME_DIR" 2>/dev/null || return 1
+            cp -r "$src_assets" "$GAME_DIR/" 2>/dev/null || continue
+            cp "$src_img" "$GAME_IMAGE" 2>/dev/null || continue
+            echo "[INFO] Copied valid data from $_cand"
+            return 0
+        else
+            local sz=$(wc -c < "$src_img" 2>/dev/null || echo 0)
+            local hdr=$(od -An -tx1 -N4 "$src_img" 2>/dev/null | tr -d ' \n')
+            echo "[WARN] Skipping $_cand: S3E invalid (size=$sz header=$hdr)"
         fi
     done
     return 1
 }
-reuse_existing_game_data || true
 
-# Re-evaluate paths after possible copy
-GAME_IMAGE="$GAME_DIR/game.s3e.unpacked"
-ASSET_DIR="$GAME_DIR/assets"
-
-# ============================================================
-# FINAL S3E HEADER VALIDATION
-# ============================================================
-if [ -f "$GAME_IMAGE" ]; then
-    local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
-    local header=$(od -An -tx1 -N4 "$GAME_IMAGE" 2>/dev/null | tr -d ' \n')
-    if [ "$file_size" -lt 1048576 ] || [ "$header" != "58453355" ]; then
-        echo "[WARN] S3E file invalid or too small: file_size=$file_size header=$header"
-        echo "[INFO] Removing corrupted file and forcing extraction"
-        rm -f "$GAME_IMAGE"
+# Try to reuse if not already valid
+if [ "$EXTRACT_RC" -ne 0 ]; then
+    reuse_existing_game_data || true
+    # Re-validate after potential copy
+    if validate_s3e "$GAME_IMAGE" && [ -d "$ASSET_DIR" ] && [ -n "$(ls -A "$ASSET_DIR" 2>/dev/null)" ]; then
+        echo "[OK] Game data restored from alternate location"
+        EXTRACT_RC=0
     fi
 fi
 
 # ============================================================
-# FIRST LAUNCH: RUN EXTRACTOR IF NEEDED
+# RUN EXTRACTOR ONLY IF STILL NEEDED
 # ============================================================
-if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
-    echo "[INFO] Game data not found, starting extractor..."
+if [ "$EXTRACT_RC" -ne 0 ]; then
+    echo "[INFO] Starting Gatito Extractor (data missing/invalid)..."
     GATITO_UI="$GAMEDIR/gatito-extract/run.sh"
     GATITO_LOG="$GAMEDIR/logs/gatito-launch.log"
     mkdir -p "$(dirname "$GATITO_LOG")" 2>/dev/null
@@ -211,74 +198,50 @@ if [ ! -f "$GAME_IMAGE" ] || [ ! -d "$ASSET_DIR" ]; then
         echo "GAMEDIR=$GAMEDIR"
         echo "GATITO_UI=$GATITO_UI"
     } >>"$GATITO_LOG" 2>&1
-    
-    if [ ! -f "$GATITO_UI" ]; then
-        echo "[FATAL] Gatito UI launcher missing: $GATITO_UI"
-        exit 1
-    fi
-    
+
+    [ -f "$GATITO_UI" ] || { echo "[FATAL] Gatito UI launcher missing: $GATITO_UI"; exit 1; }
+
     echo "[INFO] Starting Gatito UI (15 min timeout)..." >>"$GATITO_LOG" 2>&1
-    
-    # Tenta extrator duas vezes em caso de falha
+
+    # Up to 2 extraction attempts
     for attempt in 1 2; do
         echo "[INFO] Extraction attempt $attempt/2..." >>"$GATITO_LOG" 2>&1
         timeout 900 bash "$GATITO_UI" >>"$GATITO_LOG" 2>&1
         EXTRACT_RC=$?
         echo "[Gatito] launcher exit code=$EXTRACT_RC (attempt $attempt)" >>"$GATITO_LOG" 2>&1
-        
-        if [ "$EXTRACT_RC" -eq 0 ] && [ -f "$GAME_IMAGE" ] && [ -s "$GAME_IMAGE" ]; then
-            # Valida S3E após extração bem sucedida
-            local file_size=$(wc -c < "$GAME_IMAGE" 2>/dev/null || echo 0)
-            local header=$(od -An -tx1 -N4 "$GAME_IMAGE" 2>/dev/null | tr -d ' \n')
-            if [ "$file_size" -ge 1048576 ] && [ "$header" = "58453355" ]; then
-                echo "[INFO] Extraction successful, S3E valid (size=$file_size header=$header)" >>"$GATITO_LOG" 2>&1
-                break
-            else
-                echo "[WARN] Extraction seemed successful but S3E invalid (size=$file_size header=$header), retrying..." >>"$GATITO_LOG" 2>&1
-                rm -f "$GAME_IMAGE"
-                [ "$attempt" -eq 2 ] && {
-                    echo "[FATAL] Both extractions failed - S3E header invalid" >>"$GATITO_LOG" 2>&1
-                    exit "$EXTRACT_RC"
-                }
-            fi
-        elif [ "$EXTRACT_RC" -ne 0 ]; then
-            echo "[WARN] Gatito UI exit=$EXTRACT_RC (attempt $attempt)" >>"$GATITO_LOG" 2>&1
-            [ "$attempt" -eq 2 ] && {
-                echo "[FATAL] Both extraction attempts failed" >>"$GATITO_LOG" 2>&1
-                exit "$EXTRACT_RC"
-            }
-            echo "[INFO] Will retry extraction..." >>"$GATITO_LOG" 2>&1
+
+        if [ "$EXTRACT_RC" -eq 0 ] && validate_s3e "$GAME_IMAGE" && [ -d "$ASSET_DIR" ]; then
+            echo "[INFO] Extraction successful, S3E valid" >>"$GATITO_LOG" 2>&1
+            break
         fi
+
+        [ "$EXTRACT_RC" -eq 0 ] && ! validate_s3e "$GAME_IMAGE" && {
+            echo "[WARN] Extraction exited 0 but S3E invalid, retrying..." >>"$GATITO_LOG" 2>&1
+            rm -f "$GAME_IMAGE"
+        }
+
+        [ "$attempt" -eq 2 ] && [ "$EXTRACT_RC" -ne 0 ] && {
+            echo "[FATAL] Both extraction attempts failed" >>"$GATITO_LOG" 2>&1
+            exit 1
+        }
+        echo "[INFO] Will retry extraction..." >>"$GATITO_LOG" 2>&1
     done
-    
-    if [ ! -f "$GAME_IMAGE" ]; then
-        echo "[FATAL] Game image missing after all extraction attempts, cannot continue"
-        exit 1
-    fi
 fi
 
 # ============================================================
-# FINAL VERIFICATION BEFORE LAUNCHING GAME
+# FINAL VALIDATION BEFORE LAUNCH
 # ============================================================
-if [ ! -f "$GAME_IMAGE" ]; then
-    echo "[FATAL] game image not found: $GAME_IMAGE"
-    exit 1
-fi
-if [ ! -d "$ASSET_DIR" ]; then
-    echo "[FATAL] assets directory not found: $ASSET_DIR"
-    exit 1
-fi
+validate_s3e "$GAME_IMAGE" || { echo "[FATAL] S3E invalid or missing: $GAME_IMAGE"; exit 1; }
+[ -d "$ASSET_DIR" ] && [ -n "$(ls -A "$ASSET_DIR" 2>/dev/null)" ] || { echo "[FATAL] Assets missing: $ASSET_DIR"; exit 1; }
 echo "[OK] Game data verified: $GAME_IMAGE"
 echo "[OK] Assets verified: $ASSET_DIR"
 
 # ============================================================
 # CLEANUP AFTER EXTRACTOR (release DRM master)
 # ============================================================
-if [ -n "${EXTRACT_RC:-}" ]; then
+if [ -n "${EXTRACT_RC:-}" ] && [ "$EXTRACT_RC" -eq 0 ]; then
     for _pat in gatito-ui.py gatito-extract; do
-        if command -v pkill >/dev/null 2>&1; then
-            pkill -f "$_pat" 2>/dev/null || true
-        fi
+        command -v pkill >/dev/null 2>&1 && pkill -f "$_pat" 2>/dev/null || true
     done
     sleep 2
     command -v chvt >/dev/null 2>&1 && chvt 1 2>/dev/null || true
@@ -338,9 +301,7 @@ echo "--- VIDEO DETECTION ---"
 [ -e /dev/mali0 ] && echo "video: Mali device available"
 if [ -f /proc/device-tree/compatible ]; then echo "compatible=$(tr "\000" "\n" < /proc/device-tree/compatible 2>/dev/null | tr "\n" " ")"; fi
 
-if command -v pm_platform_helper >/dev/null 2>&1; then
-    pm_platform_helper "$LOADER" || echo "[WARN] pm_platform_helper returned $?"
-fi
+command -v pm_platform_helper >/dev/null 2>&1 && pm_platform_helper "$LOADER" || echo "[WARN] pm_platform_helper returned $?"
 
 # ============================================================
 # GPTOKEYB (if configured)
@@ -348,10 +309,7 @@ fi
 GPTOKEYB_PID=""
 if [ -f "$GAMEDIR/sims3.gptk" ] && [ -n "${GPTOKEYB:-}" ]; then
     read -r -a GPTOKEYB_CMD <<< "$GPTOKEYB"
-    if [ "${#GPTOKEYB_CMD[@]}" -gt 0 ]; then
-        "${GPTOKEYB_CMD[@]}" "$LOADER" -c "$GAMEDIR/sims3.gptk" &
-        GPTOKEYB_PID=$!
-    fi
+    [ "${#GPTOKEYB_CMD[@]}" -gt 0 ] && { "${GPTOKEYB_CMD[@]}" "$LOADER" -c "$GAMEDIR/sims3.gptk" & GPTOKEYB_PID=$!; }
 fi
 
 # ============================================================
@@ -359,7 +317,7 @@ fi
 # ============================================================
 echo "--- STARTING LOADER ---"
 TASKSET_CMD=()
-if [ -n "${TASKSET:-}" ]; then read -r -a TASKSET_CMD <<< "$TASKSET"; fi
+[ -n "${TASKSET:-}" ] && read -r -a TASKSET_CMD <<< "$TASKSET"
 
 if [ "${#TASKSET_CMD[@]}" -gt 0 ]; then
     "${TASKSET_CMD[@]}" "$LOADER" --run --root "$GAME_DIR" "$GAME_IMAGE"
@@ -384,8 +342,8 @@ fi
 # ============================================================
 # CLEANUP
 # ============================================================
-if [ -n "${GPTOKEYB_PID:-}" ]; then kill "$GPTOKEYB_PID" 2>/dev/null || true; fi
-if command -v pidof >/dev/null 2>&1 && [ -n "${ESUDO:-}" ]; then $ESUDO kill -9 "$(pidof gptokeyb)" 2>/dev/null || true; fi
+[ -n "${GPTOKEYB_PID:-}" ] && kill "$GPTOKEYB_PID" 2>/dev/null || true
+command -v pidof >/dev/null 2>&1 && [ -n "${ESUDO:-}" ] && $ESUDO kill -9 "$(pidof gptokeyb 2>/dev/null)" 2>/dev/null || true
 unset SDL_GAMECONTROLLERCONFIG
 pm_finish 2>/dev/null || true
 

@@ -1,207 +1,221 @@
-# 🎮 The Sims 3 — Android → Linux ARM (Multi-CFW)
+# The Sims 3 - NextOS Universal Port
+**BYO-data** • **NextOS-compatible** • **ARMv7/AArch64**
 
-> Port de **The Sims 3 (Android)** para handhelds Linux ARM com suporte **multi-firmware**.  
-> Compatível com: **muOS**, **ArkOS**, **ROCKNIX**, **NextOS** e outros CFWs com PortMaster.
-
----
-
-## ⚡ Estado atual
-
-| Status | Detalhes |
-|--------|----------|
-| ✅ **Loader** | Compilado para ARMv7 hard-float (NEON, VFPv4) |
-| ✅ **Extração** | Gatito Extractor com UI gráfica |
-| ✅ **Compatibilidade** | Detecção automática de CFW e bibliotecas |
-| 🔄 **Testes** | Validado em muOS; teste em andamento em ArkOS, ROCKNIX, NextOS |
-| 📅 | Última atualização: **2026-10-06** |
+> Universal port for handheld Linux devices (muOS, ArkOS, ROCKNIX, NextOS, PortMaster)
 
 ---
 
-## 🚀 Início Rápido
+## 📦 Package Structure
 
-> ⚠️ **Você precisa:** APK + OBB legais do jogo (seu próprio backup)
-
-### 1. Copie seus arquivos
-
-```bash
-# Coloque na raiz da pasta do port:
-cp ~/Downloads/the-sims-3-*.apk .
-cp ~/Downloads/main.*.obb .
 ```
-
-### 2. Execute
-
-```bash
-./run.sh
-```
-
-**Primeira execução:** Gatito Extractor preparará os dados automaticamente (pode levar 5-10 min).  
-**Próximas execuções:** O jogo inicia direto.
-
-### 3. Se houver problema
-
-```bash
-# Fallback com backends padrão:
-./run-fallback.sh
-
-# Diagnóstico completo:
-./detect_system.sh
+sims3/
+├── The Sims 3.sh          # Launcher (PortMaster compatible)
+├── port.json              # PortMaster metadata (NextOS)
+├── extractor.json         # Gatito extraction recipe
+├── gatito-extract/        # Gatito extractor engine
+├── hooks/                 # NXExtract hooks (unpack-s3e.sh)
+├── libs.armhf/            # ARMv7 libraries + S3E stubs
+├── libs.aarch64/          # AArch64 libraries + S3E stubs
+├── run.sh                 # Runtime with smart fallback
+├── run-fallback.sh        # Compatibility fallback
+├── port_compat.sh         # Audio/video detection
+├── sims3-port-bootstrap.sh # PortMaster bootstrap
+├── sims3_s3e_loader       # ARMv7 loader (required)
+├── sims3_s3e_loader_aarch64 # AArch64 loader (optional)
+└── docs/                  # Documentation
 ```
 
 ---
 
-## 📁 Estrutura
+## 🎯 Compatibility Matrix
 
+| CFW | Kernel | Loader | Status |
+|-----|--------|--------|--------|
+| muOS | ARMv7 | ARMv7 | ✅ Full |
+| ArkOS | ARMv7 | ARMv7 | ✅ Full |
+| ROCKNIX | AArch64 | ARMv7 (32-bit compat) | ✅ Full |
+| NextOS | AArch64 | ARMv7 (32-bit compat) | ✅ Full |
+| PortMaster | Mixed | ARMv7 (default) | ✅ Full |
+
+---
+
+## 🚀 Quick Start
+
+### Installation (BYO-data)
+
+```bash
+# 1. Download: game.s3e (The Sims 3 Android APK)
+#    From: https://store... (Android Play Store backup)
+
+# 2. Extract APK → get game.s3e
+#    Using: 7-Zip, Android Extractor, etc.
+
+# 3. Copy to your device:
+#    /storage/roms/ports/sims3/game.s3e
+
+# 4. Run:
+#    cd /storage/roms/ports/sims3
+#    chmod +x "The Sims 3.sh"
+#    ./"The Sims 3.sh"
 ```
-.
-├── run.sh                    # Launcher principal (recomendado)
-├── run-fallback.sh           # Fallback com backends conservadores
-├── detect_system.sh          # Diagnóstico: CFW, arquitetura, libs
-├── The Sims 3.sh             # Wrapper PortMaster
-├── port_compat.sh            # Detecção automática de áudio/vídeo
-├── sims3_s3e_loader          # Runtime Marmalade/S3E (ARMv7 hard-float)
-├── loader/                   # Código-fonte do loader (C)
-├── gatito-extract/           # Motor de extração com UI gráfica
-│   ├── run.sh               # Launcher da UI
-│   ├── gatito-extract-v3.py # Engine de extração (Python)
-│   └── BUILD.ui/            # Interface gráfica
-├── hooks/                    # Scripts de processamento (unpack, validação)
-├── extractor.json            # Receita de extração
-├── COMPATIBILIDADE.md        # Matriz de suporte por CFW
-├── INSTAL.md                 # Instruções de instalação
-└── docs/                     # Documentação técnica
+
+### First Launch
+
+```bash
+# The launcher will:
+# 1. Detect CFW (muOS/ROCKNIX/NextOS/ArkOS)
+# 2. Check for existing extraction
+# 3. Launch Gatito Extractor (GUI, ~15 min)
+# 4. Validate S3E header (XE3U)
+# 5. Start game
+
+# Data is stored in: /storage/roms/ports/sims3/game/
 ```
 
 ---
 
-## 🔧 Configuração (Opcional)
+## 🔧 Components
 
-### Áudio
-```bash
-export SIMS3_AUDIO_DRIVER=alsa      # ou pulseaudio, pipewire
-./run.sh
-```
+### 1. **The Sims 3.sh** (Launcher)
+- **Role:** PortMaster-compatible wrapper
+- **Features:**
+  - Instance lock (prevents double-launch)
+  - NXExtract owner-data phase (Gatito Extractor)
+  - Smart S3E extension stubs (LD_PRELOAD)
+  - Video/audio fallback detection
+  - Signal handling (graceful shutdown)
 
-### Vídeo
-```bash
-export SDL_VIDEODRIVER=kmsdrm       # ou fbcon, x11, wayland
-export SIMS3_W=640
-export SIMS3_H=480
-./run.sh
-```
+### 2. **gatito-extract/** (Extractor Engine)
+- **Engine:** `gatito-extract-v3.py`
+- **UI:** `BUILD.ui/gatito-ui.py`
+- **Pattern:** Follows NXExtract v3 specification
+- **Hooks:** `hooks/unpack-s3e.sh` (S3E LZMA → XE3U)
 
-### Bypass da UI (extração silenciosa)
-```bash
-export SIMS3_SKIP_UI=1
-./run.sh
-```
+### 3. **libs.armhf/** & **libs.aarch64/** (Libraries)
+- **S3E Stubs:**
+  - `libs3eAndroidJNI.so` - JNI interface stub
+  - `libs3eVFS.so` - Virtual file system stub
+- **Purpose:** Prevent crashes when extensions are missing
+
+### 4. **run.sh** (Runtime)
+- **Role:** Smart launcher with fallback
+- **Features:**
+  - CFW detection
+  - Loader selection (ARMv7/AArch64)
+  - S3E validation
+  - Auto fallback (fbcon/kmsdrm/wayland)
+  - Dual-mount data reuse
 
 ---
 
-## 🧪 Suporte por CFW
-
-| CFW | Status | Notas |
-|-----|--------|-------|
-| **muOS** | ✅ Testado | Funcionando |
-| **ArkOS** | 🔄 Em teste | Validar ARM32 + libs gráficas |
-| **ROCKNIX** | 🔄 Em teste | Validar suporte ARM32 |
-| **NextOS** | 🔄 Em teste | Confirmar ABI e backends |
-| **Genérico** | ⚠️ Parcial | Requer GLIBC 2.22+, libSDL2, libEGL, libGLES |
-
-**Como testar em seu CFW:**
+## 📊 PortMaster Integration
 
 ```bash
-# 1. Faça diagnóstico:
-./detect_system.sh
+# Drop this in PortMaster config:
+/opt/system/Tools/PortMaster/040_nextos.source.json
 
-# 2. Se tudo OK, tente:
-./run.sh
+# Then browse and install via PortMaster UI
+```
 
-# 3. Se falhar, tente fallback:
-./run-fallback.sh
+### Control.txt Support
 
-# 4. Reporte com:
-cat logs/debug.log
+```
+CFW_NAME=muOS              # CFW detection
+NXINPUT_ANALOG_STICKS_HINT=2  # Analog stick count
+sdl_controllerconfig=...  # SDL controller bindings
+esudo=sudo              # Sudo command
+cur_tty=/dev/tty1        # Console device
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Erro: "loader is not executable"
+### "Executable is missing or unsafe"
+
 ```bash
+# Ensure loader has correct permissions:
 chmod +x sims3_s3e_loader
-./run.sh
 ```
 
-### Erro: "SDL2 not found"
-**Seu CFW não tem bibliotecas 32-bit.** Instale:
-```bash
-# muOS: geralmente pré-instalado
-# ArkOS/ROCKNIX: `apt install libsdl2-dev:armhf` (ou equivalente)
+### "S3E extensions missing" (Crash)
+
+```
+# Stubs are auto-loaded via LD_PRELOAD
+# If still crashes, check: LD_PRELOAD in log.txt
 ```
 
-### Tela preta / sem som
+### Black screen / Tela preta
+
 ```bash
-./run-fallback.sh          # Tenta ALSA + framebuffer
-./detect_system.sh         # Confirma drivers disponíveis
+# Smart fallback should auto-detect
+# Check log.txt for:
+# - "ERROR: Could not queue pageflip"
+# - "Smart fallback: auto detected"
+#
+# Force fbcon manually:
+export SDL_VIDEODRIVER=fbcon
+export SDL_AUDIODRIVER=alsa
 ```
 
-### Extrator travou
+### Extraction fails
+
 ```bash
-# Limpe e recomece:
+# 1. Remove corrupted data:
 rm -rf game/
-./run.sh
+
+# 2. Re-run:
+./"The Sims 3.sh"
+
+# 3. Verify game.s3e header:
+hexdump -C game/game.s3e | head -1
+# Expected: 58453355 (XE3U)
 ```
 
 ---
 
-## 🔍 Diagnóstico
+## 📖 NextOS Patterns Used
 
-```bash
-# Sistema:
-./detect_system.sh
+| Pattern | Description | Implementation |
+|---------|-------------|----------------|
+| **port.json** | Port metadata | ✅ Sims 3 |
+| **NXExtract owner-data** | Extraction before game | ✅ Gatito Extractor |
+| **Instance lock** | Prevent double-launch | ✅ .nxbootstrap-* flocks |
+| **Manifest validation** | Required files check | ✅ NXBOOTSTRAP_REQUIRED_FILES |
+| **Capabilities declaration** | Hardware requirements | ✅ NXCOMPAT_REQUIRED_CAPABILITIES |
+| **BYO-data** | No game included | ✅ S3E extraction required |
+| **LD_PRELOAD stubs** | Missing extensions | ✅ S3E stub libraries |
+| **Smart fallback** | Auto video/audio detection | ✅ run.sh smart mode |
 
-# Loader:
-file sims3_s3e_loader
-readelf -h sims3_s3e_loader
+---
 
-# Dados extraídos:
-ls -la game/
-file game/game.s3e.unpacked       # Deve ser "XE3U"
+## 📝 Metadata
 
-# Logs:
-tail -50 logs/debug.log
-tail -50 logs/fallback.log
+```json
+{
+  "name": "sims3",
+  "version": 1,
+  "arch": ["armhf", "aarch64"],
+  "min_glibc": "2.17",
+  "title": "The Sims 3"
+}
 ```
 
 ---
 
-## 📚 Documentação Técnica
+## 🤝 Contributing
 
-- **`COMPATIBILIDADE.md`** — Matriz detalhada por CFW e requisitos
-- **`INSTAL.md`** — Instalação passo-a-passo
-- **`loader/Makefile`** — Como recompilar o loader
-- **`extractor.json`** — Receita de extração (validações, hooks)
+Issues, questions, or improvements? Check out the official port:
 
----
-
-## 🤝 Como Contribuir
-
-1. Teste em seu CFW
-2. Execute `./detect_system.sh` e anote o resultado
-3. Execute `./run.sh` e reporte sucesso/erro
-4. Abra issue com: CFW, modelo, logs, resultado
+**GitHub:** https://github.com/OlhaGatito/The-Sims-3-Android-port
 
 ---
 
-## ⚖️ Licença
+## 📄 License
 
-- **Código-fonte:** GPL-2.0-or-later
-- **Assets do jogo:** Não inclusos (você fornece legalmente)
-
-Veja `LICENSE`.
+**Game:** EA / The Sims 3 (proprietary)
+**Port:** MIT License (see LICENSE)
 
 ---
 
-**Questions?** Abra uma [issue](https://github.com/OlhaGatito/The-Sims-3-Android-port/issues).
+**⚠️ BYO-data warning:** This port requires extracting The Sims 3 Android APK (game.s3e) from your own backup. No game files are included.

@@ -45,7 +45,14 @@
       ]
     }
   ],
-  "commit": {
-    "root": "game"
-  }
+  "commit": [
+    "game"
+  ],
+  "marker": ".nxextract-sims3.json",
+  "space": {
+    "safety_bytes": 268435456
+  },
+  "log": "nxextract.log",
+  "ui_success_seconds": 1,
+  "ui_error_seconds": 8
 }

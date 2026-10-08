@@ -108,8 +108,7 @@ else
 fi
 
 # Game directory (NextOS pattern)
-GAMEDIR="/$directory/ports/sims3"
-[ -d "$GAMEDIR" ] || GAMEDIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/sims3"
+GAMEDIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/sims3"
 cd "$GAMEDIR" || exit 1
 GAMEDIR=$(pwd -P)
 

@@ -1,0 +1,18 @@
+{
+  "project": "The Sims 3",
+  "migration": "nextos-bootstrap",
+  "framework": {
+    "family": "NextOS Framework V5",
+    "commit": "657fb65a23b5c3b20040e76307b27e6470b1d17c",
+    "source": "NextOs-Ports/nextos-framework"
+  },
+  "rules": {
+    "launcher": "single generated-style PortMaster launcher",
+    "owner_data": "NXExtract transactional installation",
+    "runtime": "S3E loader remains port-owned",
+    "fallback_scripts": false,
+    "duplicate_run_scripts": false,
+    "game_data_in_repository": false
+  },
+  "note": "The framework repository is private; this project records the approved pin and consumes generated/public framework artifacts rather than copying private framework source."
+}

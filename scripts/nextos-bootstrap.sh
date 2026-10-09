@@ -17,7 +17,7 @@ mkdir -p "$ROOT/build/nextos"
 info "Validando ferramentas dentro de $SDK_IMAGE"
 docker run --rm -e NEXTOS_SDK_IMAGE="$SDK_IMAGE" -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
-for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf file python3; do
+for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf python3; do
   command -v "$tool" >/dev/null 2>&1 || {
     printf "[NEXTOS-BOOTSTRAP][ERRO] Ferramenta ausente no SDK: %s\n" "$tool" >&2
     exit 1

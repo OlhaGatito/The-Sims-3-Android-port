@@ -25,10 +25,12 @@ for rel in "${required[@]}"; do
   [[ -f "$ROOT/$rel" ]] || { printf '[NEXTOS-PACKAGE][ERRO] Arquivo necessário ausente: %s\n' "$rel" >&2; exit 1; }
   cp -a "$ROOT/$rel" "$STAGE/"
 done
-for dir in hooks nxextract libs.armhf; do
+for dir in nxextract libs; do
   [[ -d "$ROOT/$dir" ]] || { printf '[NEXTOS-PACKAGE][ERRO] Diretório necessário ausente: %s\n' "$dir" >&2; exit 1; }
   cp -a "$ROOT/$dir" "$STAGE/"
 done
+mkdir -p "$STAGE/scripts"
+cp -a "$ROOT/scripts/unpack-s3e.py" "$STAGE/scripts/unpack-s3e.py"
 cp -a "$ROOT/build/nextos/sims3_s3e_loader" "$STAGE/sims3_s3e_loader"
 chmod +x "$STAGE/sims3_s3e_loader" "$STAGE/The Sims 3.sh"
 

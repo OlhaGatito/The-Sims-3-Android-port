@@ -280,7 +280,7 @@ command -v pm_platform_helper >/dev/null 2>&1 && pm_platform_helper "$BIN"
 # Host phase ends: library paths now (NextOS pattern)
 LIBS=""
 for d in "$controlfolder/libs" "$controlfolder/libs.armhf" "$controlfolder/libs.aarch64" \
-         "$GAMEDIR/libs.armhf" "$GAMEDIR/libs.aarch64" \
+         "$GAMEDIR/libs" \
          /usr/local/lib/aarch64-linux-gnu /usr/local/lib64 /usr/local/lib \
          /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu \
          /usr/lib/arm-linux-gnueabihf /lib/arm-linux-gnueabihf \
@@ -314,9 +314,7 @@ export NXCOMPAT_RUNTIME_REPORT=log-and-logo
 
 # S3E Extension stubs via LD_PRELOAD (NextOS LD_PRELOAD pattern)
 # Use armhf stubs (ARMv7) as primary since our loader is ARMv7
-STUBS_DIR="$GAMEDIR/libs.armhf"
-# Fallback to aarch64 stubs if available and we're on AArch64
-[ "$(uname -m)" = "aarch64" ] && [ -d "$GAMEDIR/libs.aarch64" ] && STUBS_DIR="$GAMEDIR/libs.aarch64"
+STUBS_DIR="$GAMEDIR/libs"
 STUBS_PRELOAD=""
 for stub in libs3eAndroidJNI.so libs3eVFS.so; do
   [ -f "$STUBS_DIR/$stub" ] && STUBS_PRELOAD="${STUBS_PRELOAD:+$STUBS_PRELOAD:}$STUBS_DIR/$stub"

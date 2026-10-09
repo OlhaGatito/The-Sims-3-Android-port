@@ -5,7 +5,7 @@ set -Eeuo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SDK_IMAGE="${NEXTOS_SDK_IMAGE:-nextos-public-sdk:1}"
 BIN="${1:-build/nextos/sims3_s3e_loader}"
-MAX_GLIBC="${MAX_GLIBC:-2.28}"
+MAX_GLIBC="${MAX_GLIBC:-2.22}"
 
 [[ "$BIN" = /* ]] || BIN="$ROOT/$BIN"
 [[ -s "$BIN" ]] || { printf '[NEXTOS-VERIFY][ERRO] Loader ausente/vazio: %s\n' "$BIN" >&2; exit 1; }
@@ -19,8 +19,12 @@ set -Eeuo pipefail
 bin="/repo/$BIN_REL"
 max_glibc="$MAX_GLIBC"
 
-echo "=== file ==="
-file "$bin"
+if command -v file >/dev/null 2>&1; then
+  echo "=== file ==="
+  file "$bin"
+else
+  echo "[WARN] ferramenta file ausente; validação ELF continuará com readelf."
+fi
 echo "=== ELF header ==="
 readelf -h "$bin"
 echo "=== ARM attributes ==="

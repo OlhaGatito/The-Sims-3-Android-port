@@ -14,7 +14,7 @@ Consulte [Instalação](INSTAL.md) e [Compatibilidade](COMPATIBILIDADE.md) antes
 
 ## Instalação resumida
 
-1. Baixe o pacote do port a partir do repositório.
+1. Baixe o ZIP do repositório pelo botão **Code → Download ZIP**.
 2. Copie a pasta do port para a pasta de ports do seu firmware.
 3. Prepare os arquivos do jogo conforme o guia de [instalação](INSTAL.md).
 4. Abra **The Sims 3** pelo PortMaster.

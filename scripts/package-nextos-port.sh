@@ -49,7 +49,7 @@ with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compressleve
     for path in sorted(stage.rglob("*")):
         if path.is_file():
             archive.write(path, pathlib.Path("sims3") / path.relative_to(stage))
-print(f"PACKAGE={output} FILES={sum(1 for p in stage.rglob(chr(42)) if p.is_file())}")
+print(f"PACKAGE={output} FILES={sum(1 for p in stage.rglob('*') if p.is_file())}")
 PY
 '
 test -s "$OUT" || { echo "[NEXTOS-PACKAGE][ERRO] ZIP não foi criado." >&2; exit 1; }

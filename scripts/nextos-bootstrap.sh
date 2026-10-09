@@ -15,7 +15,7 @@ docker image inspect "$SDK_IMAGE" >/dev/null 2>&1 || die "Imagem SDK '$SDK_IMAGE
 mkdir -p "$ROOT/build/nextos"
 
 info "Validando ferramentas dentro de $SDK_IMAGE"
-docker run --rm -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
+docker run --rm -e NEXTOS_SDK_IMAGE="$SDK_IMAGE" -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
 for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf file python3; do
   command -v "$tool" >/dev/null 2>&1 || {

@@ -15,11 +15,6 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 required=(
   "The Sims 3.sh"
-  "run.sh"
-  "run-fallback.sh"
-  "port_compat.sh"
-  "sims3-port-bootstrap.sh"
-  "detect_system.sh"
   "port.json"
   "extractor.json"
   "README.md"
@@ -35,7 +30,7 @@ for dir in hooks nxextract libs.armhf; do
   cp -a "$ROOT/$dir" "$STAGE/"
 done
 cp -a "$ROOT/build/nextos/sims3_s3e_loader" "$STAGE/sims3_s3e_loader"
-chmod +x "$STAGE/sims3_s3e_loader" "$STAGE/The Sims 3.sh" "$STAGE/run.sh" "$STAGE/run-fallback.sh" "$STAGE/port_compat.sh" "$STAGE/sims3-port-bootstrap.sh"
+chmod +x "$STAGE/sims3_s3e_loader" "$STAGE/The Sims 3.sh"
 
 SDK_IMAGE="${NEXTOS_SDK_IMAGE:-nextos-public-sdk:1}"
 docker run --rm -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '

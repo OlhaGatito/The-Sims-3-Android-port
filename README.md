@@ -87,7 +87,7 @@ O payload esperado pelo loader é criado em `game/game.s3e.unpacked`. Mantenha A
 - **Recipe:** `extractor.json` define como localizar e validar os dados do APK; a recipe específica do Sims 3 ainda exige teste real.
 - **Hook:** `hooks/unpack-s3e.sh` tenta produzir o payload S3E esperado.
 
-### 3. **libs.armhf/** & **libs.aarch64/** (Libraries)
+### 3. **libs.armhf/** (Libraries)
 - **S3E Stubs:**
   - `libs3eAndroidJNI.so` - JNI interface stub
   - `libs3eVFS.so` - Virtual file system stub
@@ -97,7 +97,7 @@ O payload esperado pelo loader é criado em `game/game.s3e.unpacked`. Mantenha A
 - **Role:** Smart launcher with fallback
 - **Features:**
   - CFW detection
-  - Loader selection (ARMv7/AArch64)
+  - ARMv7 loader selection (AArch64 hosts require ARM32 compatibility)
   - S3E validation
   - Auto fallback (fbcon/kmsdrm/wayland)
   - Dual-mount data reuse
@@ -232,6 +232,6 @@ bash scripts/test-shell-scripts.sh
 bash scripts/package-nextos-port.sh
 ```
 
-O artefato compilado fica em `build/nextos/sims3_s3e_loader` e o pacote BYO-data em `build/nextos/sims3-nextos-port.zip`. Os loaders versionados na raiz e em `loader/` não são sobrescritos por esse fluxo. Consulte [docs/NEXTOS-SDK-FLOW.md](docs/NEXTOS-SDK-FLOW.md) para as verificações e limitações.
+O artefato compilado fica em `build/nextos/sims3_s3e_loader` e o pacote BYO-data em `build/nextos/sims3.zip`. Os loaders versionados na raiz e em `loader/` não são sobrescritos por esse fluxo. Consulte [docs/NEXTOS-SDK-FLOW.md](docs/NEXTOS-SDK-FLOW.md) para as verificações e limitações.
 
 A verificação ELF confirma propriedades de compilação/ABI, não a execução do jogo. Compatibilidade de gráficos, áudio, controles, saves e gameplay só pode ser confirmada com testes no dispositivo e logs reais.

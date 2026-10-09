@@ -24,7 +24,7 @@ for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf 
   }
 done
 printf "SDK_IMAGE=%s\n" "${NEXTOS_SDK_IMAGE:-nextos-public-sdk:1}"
-arm-linux-gnueabihf-gcc --version | head -n 1
-make --version | head -n 1
+arm-linux-gnueabihf-gcc --version | sed -n "1p"
+make --version | sed -n "1p"
 '
 info "Bootstrap/preflight aprovado. Nenhum arquivo do loader foi alterado."

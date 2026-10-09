@@ -9,20 +9,14 @@
   },
   "items": [
     "The Sims 3.sh",
+    "port.json",
     "extractor.json",
     "nxextract/",
     "hooks/",
     "libs.armhf/",
-    "libs.aarch64/",
     "sims3_s3e_loader",
-    "sims3_s3e_loader_aarch64",
-    "run.sh",
-    "run-fallback.sh",
-    "port_compat.sh",
-    "detect_system.sh",
-    "sims3-port-bootstrap.sh",
-    "sims3-stubs.c",
-    "Makefile",
+    "INSTAL.md",
+    "COMPATIBILIDADE.md",
     "README.md"
   ],
   "items_opt": [

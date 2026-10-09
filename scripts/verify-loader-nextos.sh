@@ -16,8 +16,8 @@ bash "$ROOT/scripts/nextos-bootstrap.sh"
 
 docker run --rm -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
-bin="/repo/'"$BIN_REL"'"
-max_glibc="'"$MAX_GLIBC"'"
+bin="/repo/'"'"$BIN_REL"'"'"
+max_glibc="'"'"$MAX_GLIBC"'"'"
 
 echo "=== file ==="
 file "$bin"
@@ -32,11 +32,11 @@ readelf -d "$bin"
 echo "=== required GLIBC versions ==="
 readelf --version-info "$bin" | grep -oE "GLIBC_[0-9]+\.[0-9]+" | sort -Vu || true
 
-readelf -h "$bin" | grep -q "Class:.*ELF32" || { echo "ERRO: não é ELF32" >&2; exit 1; }
-readelf -h "$bin" | grep -q "Machine:.*ARM" || { echo "ERRO: arquitetura não é ARM32" >&2; exit 1; }
-readelf -l "$bin" | grep -q "/lib/ld-linux-armhf.so.3" || { echo "ERRO: interpretador ARM hard-float esperado não encontrado" >&2; exit 1; }
-readelf -A "$bin" | grep -q "Tag_ABI_VFP_args: VFP registers" || { echo "ERRO: ABI hard-float não confirmada pelos atributos ELF" >&2; exit 1; }
-readelf -d "$bin" | grep -q "(NEEDED)" || { echo "ERRO: loader não parece dinamicamente ligado" >&2; exit 1; }
+readelf -h "$bin" | grep "Class:.*ELF32" >/dev/null || { echo "ERRO: não é ELF32" >&2; exit 1; }
+readelf -h "$bin" | grep "Machine:.*ARM" >/dev/null || { echo "ERRO: arquitetura não é ARM32" >&2; exit 1; }
+readelf -l "$bin" | grep "/lib/ld-linux-armhf.so.3" >/dev/null || { echo "ERRO: interpretador ARM hard-float esperado não encontrado" >&2; exit 1; }
+readelf -A "$bin" | grep "Tag_ABI_VFP_args: VFP registers" >/dev/null || { echo "ERRO: ABI hard-float não confirmada pelos atributos ELF" >&2; exit 1; }
+readelf -d "$bin" | grep "(NEEDED)" >/dev/null || { echo "ERRO: loader não parece dinamicamente ligado" >&2; exit 1; }
 
 max_required="$(readelf --version-info "$bin" | grep -oE "GLIBC_[0-9]+\.[0-9]+" | sed "s/GLIBC_//" | sort -Vu | tail -n 1 || true)"
 if [[ -n "$max_required" ]]; then

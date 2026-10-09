@@ -19,6 +19,8 @@
     "port_compat.sh",
     "detect_system.sh",
     "sims3-port-bootstrap.sh",
+    "INSTAL.md",
+    "COMPATIBILIDADE.md",
     "README.md"
   ],
   "items_opt": [

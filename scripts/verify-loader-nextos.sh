@@ -14,10 +14,10 @@ BIN_REL="${BIN#"$ROOT"/}"
 
 bash "$ROOT/scripts/nextos-bootstrap.sh"
 
-docker run --rm -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
+docker run --rm -e BIN_REL="$BIN_REL" -e MAX_GLIBC="$MAX_GLIBC" -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
-bin="/repo/'"'"$BIN_REL"'"'"
-max_glibc="'"'"$MAX_GLIBC"'"'"
+bin="/repo/$BIN_REL"
+max_glibc="$MAX_GLIBC"
 
 echo "=== file ==="
 file "$bin"

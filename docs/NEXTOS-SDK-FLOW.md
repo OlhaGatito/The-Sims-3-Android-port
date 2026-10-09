@@ -34,6 +34,6 @@ O pacote executável é escrito em `build/nextos/sims3.zip`. O loader de build f
 
 Build bem-sucedido e inspeção ELF não provam que o jogo inicia nem que gráficos, áudio, input, saves ou gameplay funcionam no aparelho. Esses pontos exigem execução no dispositivo e logs reais. Não marcar compatibilidade de runtime como aprovada apenas com base na compilação.
 
-## Por que os scripts legados não foram apagados nesta etapa
+## Limpeza de scripts legados
 
-Os scripts existentes incluem o launcher, runtime, detecção de ambiente, fallback e integração NXExtract. Removê-los sem provar suas referências e sem teste no aparelho poderia quebrar o port. A limpeza deve ocorrer depois de mapear chamadas/referências e testar o fluxo de instalação e inicialização. `build-stubs.sh` foi removido porque podia selecionar GCC nativo e gerar stubs sem validar o contrato S3E. O Makefile da raiz agora encaminha os alvos de desenvolvimento aos scripts do SDK NextOS. Os stubs e bibliotecas versionados permanecem preservados e não são regenerados automaticamente até que suas interfaces sejam validadas.
+O launcher `The Sims 3.sh` é a única entrada principal do jogo e mantém o padrão PortMaster/NextOS. Foram removidos os caminhos redundantes `run.sh`, `run-fallback.sh`, `port_compat.sh`, `detect_system.sh`, `sims3-port-bootstrap.sh` e `build-stubs.sh`. Permanecem apenas os scripts de extração chamados pelo launcher/recipe (`nxextract/run-extractor.sh`, `nxextract/nxextract-runtime-env.sh` e `hooks/unpack-s3e.sh`) e os scripts de desenvolvimento em `scripts/`. Não foram apagados os loaders nem as bibliotecas versionadas. A compatibilidade em runtime continua pendente de teste real no dispositivo.

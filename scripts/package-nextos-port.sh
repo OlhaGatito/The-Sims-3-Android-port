@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 STAGE="$ROOT/build/nextos/package/sims3"
-OUT_REL="build/nextos/sims3-nextos-port.zip"
+OUT_REL="build/nextos/sims3.zip"
 OUT="$ROOT/$OUT_REL"
 
 bash "$ROOT/scripts/build-loader-nextos.sh"
@@ -40,7 +40,7 @@ chmod +x "$STAGE/sims3_s3e_loader" "$STAGE/The Sims 3.sh" "$STAGE/run.sh" "$STAG
 SDK_IMAGE="${NEXTOS_SDK_IMAGE:-nextos-public-sdk:1}"
 docker run --rm -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
-python3 - "build/nextos/package/sims3" "build/nextos/sims3-nextos-port.zip" <<'"'"'PY'"'"'
+python3 - "build/nextos/package/sims3" "build/nextos/sims3.zip" <<'"'"'PY'"'"'
 import pathlib, sys, zipfile
 stage = pathlib.Path(sys.argv[1])
 output = pathlib.Path(sys.argv[2])

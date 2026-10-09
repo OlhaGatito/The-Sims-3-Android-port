@@ -1,75 +1,50 @@
 name: Loader and Port CI
-
-# This GitHub-hosted build is a smoke test only. The canonical/release build
-# must use scripts/build-loader-nextos.sh with the documented NextOS SDK.
-# CI never executes ARM binaries without a matching ARM root filesystem and
-# never overwrites the tracked loader binaries.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "loader/**"
       - "scripts/**"
       - "Makefile"
       - "The Sims 3.sh"
-      - "scripts/**"
       - "nxextract/**"
-      - "hooks/**"
+      - "libs/**"
       - "port.json"
       - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "loader/**"
       - "scripts/**"
       - "Makefile"
       - "The Sims 3.sh"
-      - "scripts/**"
       - "nxextract/**"
-      - "hooks/**"
+      - "libs/**"
       - "port.json"
       - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
-
 permissions:
   contents: read
-
 jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      - name: Check shell syntax and project consistency
+        run: bash scripts/rebuild-base.sh --check
+      - name: Check Python syntax
+        run: python3 -c 'import pathlib; [compile(pathlib.Path(p).read_text(), p, "exec") for p in ("nxextract/nxextract.py", "scripts/unpack-s3e.py")]'
       - name: Install ARMv7 smoke-test toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf file
-
-      - name: Check shell syntax
-        run: bash scripts/test-shell-scripts.sh
-
-      - name: Check Python syntax
-        run: python3 -m py_compile nxextract/nxextract.py hooks/unpack-s3e-python.py
-
       - name: Cross-compile smoke test (not a release build)
         run: |
           mkdir -p build/ci
-          make -C loader \
-            TARGET="$PWD/build/ci/sims3_s3e_loader" \
-            CC=arm-linux-gnueabihf-gcc \
-            STRIP=arm-linux-gnueabihf-strip
-          file build/ci/sims3_s3e_loader
+          make -C loader TARGET="$PWD/build/ci/sims3_s3e_loader" CC=arm-linux-gnueabihf-gcc STRIP=arm-linux-gnueabihf-strip
           readelf -h build/ci/sims3_s3e_loader | grep "Class:.*ELF32"
           readelf -h build/ci/sims3_s3e_loader | grep "Machine:.*ARM"
           readelf -l build/ci/sims3_s3e_loader | grep "/lib/ld-linux-armhf.so.3"
           readelf -A build/ci/sims3_s3e_loader | grep "Tag_ABI_VFP_args: VFP registers"
           readelf -d build/ci/sims3_s3e_loader | grep "(NEEDED)"
-
-      - name: Report release-build requirement
-        run: |
-          echo "CI smoke build passed. For canonical artifacts, use scripts/build-loader-nextos.sh with nextos-public-sdk:1."
-          echo "The loader was not executed here; runtime validation requires the target root filesystem or device."

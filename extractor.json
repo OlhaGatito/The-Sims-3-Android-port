@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "sims3-s3e",
-  "version": "2",
+  "version": "3",
   "title": "The Sims 3 S3E",
   "abi_order": ["armeabi"],
   "input": {
@@ -12,46 +12,16 @@
     "packages": ["com.eamobile.sims3_row_qwf"]
   },
   "extract": [
-    {
-      "id": "sims3-s3e",
-      "source": {"kind": "entry", "patterns": ["assets/The Sims 3.s3e"], "scopes": ["apk"]},
-      "destination": "game/s3e",
-      "required": true
-    },
-    {
-      "id": "sims3-assets",
-      "source": {"kind": "entries", "patterns": ["assets/**"], "scopes": ["apk"], "strip_prefix": "assets"},
-      "destination": "game/assets",
-      "required": true
-    }
+    {"id":"sims3-s3e","source":{"kind":"entry","patterns":["assets/The Sims 3.s3e"],"scopes":["apk"]},"destination":"game/s3e","required":true},
+    {"id":"sims3-android-native-libs","source":{"kind":"entries","patterns":["lib/**/*.so"],"scopes":["apk"],"strip_prefix":"lib"},"destination":"game/libs/android","required":true},
+    {"id":"sims3-assets","source":{"kind":"entries","patterns":["assets/**"],"scopes":["apk"],"strip_prefix":"assets"},"destination":"game/assets","required":true}
   ],
   "hooks": [
-    {
-      "id": "unpack-s3e",
-      "argv": ["bash", "{recipe_dir}/hooks/unpack-s3e.sh"],
-      "cwd": "{game_dir}",
-      "checkpoint": [
-        {"path": "game/game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
-      ],
-      "fallbacks": [
-        {
-          "id": "python-lzma",
-          "title": "Decoder Python LZMA-alone",
-          "argv": ["python3", "{recipe_dir}/hooks/unpack-s3e-python.py", "{stage}/game/s3e", "{stage}/game/game.s3e.unpacked"],
-          "checkpoint": [
-            {"path": "game/game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
-          ]
-        }
-      ]
-    }
+    {"id":"unpack-s3e-python","argv":["python3","{recipe_dir}/scripts/unpack-s3e.py","{stage}/game/s3e","{stage}/game/game.s3e.unpacked"],"cwd":"{game_dir}","checkpoint":[{"path":"game/game.s3e.unpacked","type":"file","min_size":1048576,"magic_hex":"58453355"}]}
   ],
-  "commit": [
-    "game"
-  ],
+  "commit": ["game"],
   "marker": ".nxextract-sims3.json",
-  "space": {
-    "safety_bytes": 268435456
-  },
+  "space": {"safety_bytes": 268435456},
   "log": "nxextract.log",
   "ui_success_seconds": 1,
   "ui_error_seconds": 8

@@ -219,3 +219,21 @@ Issues, questions, or improvements? Check out the official port:
 ---
 
 **⚠️ BYO-data warning:** This port requires extracting The Sims 3 Android APK (game.s3e) from your own backup. No game files are included.
+
+---
+
+## 🧰 Build reproduzível com o SDK NextOS
+
+O build de desenvolvimento do loader ARMv7 hard-float deve usar a imagem documentada `nextos-public-sdk:1`; os scripts não substituem o SDK por GCC nativo do WSL.
+
+```bash
+bash scripts/nextos-bootstrap.sh
+bash scripts/build-loader-nextos.sh
+bash scripts/verify-loader-nextos.sh
+bash scripts/test-shell-scripts.sh
+bash scripts/package-nextos-port.sh
+```
+
+O artefato compilado fica em `build/nextos/sims3_s3e_loader` e o pacote BYO-data em `build/nextos/sims3-nextos-port.zip`. Os loaders versionados na raiz e em `loader/` não são sobrescritos por esse fluxo. Consulte [docs/NEXTOS-SDK-FLOW.md](docs/NEXTOS-SDK-FLOW.md) para as verificações e limitações.
+
+A verificação ELF confirma propriedades de compilação/ABI, não a execução do jogo. Compatibilidade de gráficos, áudio, controles, saves e gameplay só pode ser confirmada com testes no dispositivo e logs reais.

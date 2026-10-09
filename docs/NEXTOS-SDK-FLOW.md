@@ -18,7 +18,7 @@ bash scripts/test-shell-scripts.sh
 bash scripts/package-nextos-port.sh
 ```
 
-O pacote executável é escrito em `build/nextos/sims3-nextos-port.zip`. O loader de build fica em `build/nextos/sims3_s3e_loader`.
+O pacote executável é escrito em `build/nextos/sims3.zip`. O loader de build fica em `build/nextos/sims3_s3e_loader`.
 
 ### O que cada etapa faz
 

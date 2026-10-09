@@ -1,286 +1,84 @@
-Relatório de Investigação Forense – The Sims 3 Android
-A. Identificação
-Campo	Valor
-APK (nome)	ts3_1.7.11-APK_Award.apk
-Caminho completo no ambiente Windows (acessível pelo WSL)	C:\Users\Fabricio\Documents\Sims3\ts3_1.7.11-APK_Award.apk
-Tamanho (bytes)	79 159 148 bytes (≈75.5 MiB)
-SHA‑256 (longo)	07709e5a8d261e7edaf43cedae7db0fc193532c03546a67e5a62823e2cca0e18
-Arquivo executável de referência (sims3_s3e_loader)	C:\Users\Fabricio\Documents\Sims3\sims3_s3e_loader (130.4 KB)
-B. Inventário (amostra)
-O APK é um arquivo ZIP com diretórios lib/ e assets/. Foram identificadas as seguintes estruturas nativas (resumo):
+# APK investigation notes — The Sims 3 Android
 
-Caminho interno	Tipo observado	Tamanho (bruto)
-lib/armeabi-v7a/*.so	Bibliotecas .so ARMv7	~40 MiB total (detectadas 15–20 libs)
-assets/*.s3e	Bundles S3E (assets + código compacto)	~30 MiB total
-AndroidManifest.xml	Manifesto Android	decodificado (parseado manualmente)
-resources.arsc	Recursos compactados	~2 MiB
-Nota: a extração completa de cada biblioteca e avaliação de SHA‑256 de todos os .so e .s3e foi parcial devido a limitações temporais na execução (não foi possível instalar ferramentas como aapt via SDK Android no ambiente). A seguir apresentamos um exemplo de análise de duas libs selecionadas.
+> Purpose: preserve the APK facts collected so far for loader development.
+> Evidence status: this document was consolidated from a duplicated report. Values below are reported by the previous analysis and have **not all been independently re-verified**. Treat anything marked unverified as a lead, not as a build specification.
 
-C. Arquitetura e ABI (exemplos)
-1. lib/armeabi-v7a/libc++.so
-# file lib/armeabi-v7a/libc++.so
-ELF 32-bit LSB executable, ARM, EABI5, Version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-armhf.so.3, BuildID[sha1]=..., for GNU/Linux 2.6.26, not stripped
+## 1. APK identity (reported)
 
-# readelf -h lib/armeabi-v7a/libc++.so | head
-  Machine:                           ARM
-  Key:                               0x40000001
+| Field | Reported value |
+|---|---|
+| File | `ts3_1.7.11-APK_Award.apk` |
+| Windows path | `C:\\Users\\Fabricio\\Documents\\Sims3\\ts3_1.7.11-APK_Award.apk` |
+| WSL path | `/mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk` |
+| Size | 79,159,148 bytes (about 75.5 MiB) |
+| SHA-256 | `07709e5a8d261e7edaf43cedae7db0fc193532c03546a67e5a62823e2cca0e18` |
+| Package / version | `com.ea.sims3`, version name `1.7.11`, version code `2` |
+| Android SDK | min 11, target 23 (reported from manifest parsing) |
+| Native ABI directory | `lib/armeabi-v7a/` (reported) |
+| External OBB | None found in the directories checked by the previous analysis; this does not prove that no OBB exists elsewhere. |
 
-# readelf --version-info lib/armeabi-v7a/libc++.so | grep GLIBC
- 0x0c000021 0x00 0x00 009 GLIBC_2.28
- 0x0c0000b7 0x00 0x00 009 GLIBC_2.7
- 0x0c000014 0x00 0x00 009 GLIBC_2.3
- …
-Conclusão: libs são ELF 32‑bit ARM, dependem de GLIBC 2.28 (compatível com NextOS).
+Recalculate the hash and confirm the manifest directly against the APK before relying on these values.
 
-2. lib/armeabi-v7a/libS3ECore.so
-# file lib/armeabi-v7a/libS3ECore.so
-ELF 32-bit LSB shared object, ARM, EABI5, Version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-armhf.so.3, BuildID[sha1]=..., for GNU/Linux 2.6.26
+## 2. Reported APK contents
 
-# readelf --version-info lib/armeabi-v7a/libS3ECore.so | grep GLIBC
- 0x0c000021 0x00 0x00 009 GLIBC_2.28
- …
-Conclusão: compartilhado, suporta hard‑float (evidenciado pelo atributo Tag_ABI_VFP_args: VFP registers após leitura do cabeçalho completo).
+The previous report describes native libraries under `lib/armeabi-v7a/` and S3E/resource bundles under `assets/`. It mentioned these library names:
 
-3. Resumo ABI
-Classe: ELF 32‑bit LSB
-Máquina: ARM (versão EABI 5)
-ABI de ponto flutuante: hard‑float (descrita pelo atributo Tag_ABI_VFP_args no cabeçalho)
-Endianess: little‑endian
-Endereço de entrada: tipicamente 0x10000
-Versão máxima de GLIBC requerida: 2.28
-D. Runtime S3E
-1. Inicialização do runtime S3E
-Manifesto parseado:
-<manifest android:versionName="1.7.11" android:versionCode="2"
-          package="com.ea.sims3">
-  <uses-sdk android:minSdkVersion="11" android:targetSdkVersion="23"/>
-</manifest>
-SDK mínimo: 11 (Android 3.0)
-Máximo declarado: 23 (Android 6.0)
-Símbolos encontrados em libs S3E:
-s3eLoaderInit, s3eLoaderShutdown, s3eLoaderLoad, s3eFileOpen, s3eFileRead, s3eFileClose, etc.
-Características típicas de Marmalade S3E Runtime.
-Carregamento de bibliotecas nativas (código do APK, inferido via análise de strings e System.loadLibrary):
-libS3ECore.so, libS3EShell.so, libS3EFile.so, libS3EGfx.so, libS3EInput.so, libS3ESocket.so, etc.
-2. Como o runtime localiza os dados do jogo
-Os arquivos .s3e contêm tanto metadados quanto conteúdo compactado (Texas .so + assets).
-Quando o APK é instalado no Android, o motor do jogo extraia os .s3e para o diretório de cache (/data/data/com.ea.sims3/cache).
-Ao ser carregado, o runtime procura os módulos .s3e no diretório de cache, abre (base64‑decode/ZIP) e CARICA os sub‑binários (.so) e recursos.
-3. Pontos críticos para Linux/NextOS
-O loader nativo (sims3_s3e_loader) não depende de java já no Linux – ele é o ponto inicial que o próximo passo deve providenciar.
-O runtime S3E espera funções específicas (s3eLoaderInit, s3eLoaderShutdown, etc.), que estão definidas em libS3ECore.so.
-Como o APK não expõe funções JNI explícitas no Linux, o próximo loader precisará implementar um “stub” que emula (ou freza) o cabeçalho esperado pelo libS3ECore.so.
-E. Estado do projeto
-Componente	Caminho atual	Status
-Launcher (The Sims 3.sh)	C:\Users\Fabricio\Documents\Sims3\The Sims 3.sh (scrpt de shell)	Inteligível (chama sims3_s3e_loader)
-Código‑fonte do loader (repositório)	C:\Users\Fabricio\Documents\Sims3\src\main.c (e outros .c em src/)	Disponível, compilado → sims3_s3e_loader (130.4 KB)
-Código‑fonte do build loader	C:\Users\Fabricio\Documents\Sims3\Makefile	Verificável, define ABI ARMv7 hard‑float
-Scripts de build/inserção	C:\Users\Fabricio\Documents\Sims3\scripts/build-loader-nextos.sh, package-nextos-port.sh, verify-loader-nextos.sh	Presentes (precisam ser revisados)
-Manifesto Android	AndroidManifest.xml (extraído do APK)	Parseado (pacote: com.ea.sims3)
-Loader atual (sims3_s3e_loader)	C:\Users\Fabricio\Documents\Sims3\sims3_s3e_loader	já compilado, mas ainda não integrado no APK
-F. Dados que faltam
-Dado	Por que falta	Ação para obter
-SHA‑256 completo de todas as bibliotecas .so (15–20 arquivos)	Falta tempo para executar sha256sum e extrair tudo dentro do container (detalhes de reprodução)	Re‑executar script completo de análise (por‑ex: apktool + loop sha256sum sobre extracted_libs/*.so)
-nome real do pacote Android	O parse manual do AndroidManifest.xml levou ao nome presumido (com.ea.sims3)	Re‑executar aapt dump badging <APK> para ter dados oficiais
-versão oficial de SDK do APK (minSdk/targetSdk)	Parse efetuado via grep sobre AndroidManifest.xml (poderia haver outras declarações)	Executar aapt dump badging <APK> para ter dados oficiais
-arquivos OBB (se existirem para instalar dados do jogo)	Não foram localizados na dada pasta, mas poderiam estar em outra localização	Pesquisar recursivamente por *.obb nos diretórios do Windows acessíveis pelo WSL
-strings completas do runtime S3E (para entender chamadas de inicialização)	Não foi possível executar script de análise sem instalar aapt ou apktool	Instalar apktool e rodar apktool d <APK> para ter acesso total ao conteúdo
-G. Briefing técnico para outra IA desenvolver o loader
-1. O que o loader precisa fazer
-Carregar o runtime Marmalade/S3E (libS3ECore.so + dependentes).
-Fornecer as funções do perfil de carregamento definidas pelo runtime (s3eLoaderInit, s3eLoaderShutdown, s3eLoaderLoad).
-Permitir que o runtime abra e leia os arquivos .s3e (formato ZIP+base64) diretamente do sistema de arquivos do NextOS.
-Emular, se necessário, as chamadas de incialização do Android (JNI_OnLoad, etc.) para que o runtime S3E considere que a execução ocorreu num ambiente “android-like”.
-2. Arquivos e bibliotecas necessários
-Arquivo/Lib	Caminho de referência no APK	Importância
-libS3ECore.so	lib/armeabi-v7a/libS3ECore.so	Kernel do runtime S3E; define funcções de carregamento e I/O
-Deps nativas	lib/armeabi-v7a/libc++.so, libdl.so.2, libm.so.6, libpthread.so.0	Dependências dinâmicas principais
-Arquivos .s3e	assets/*.s3e (extraído para cache/)	Pacote de código e assets do jogo
-3. Interfaces e dependências a investigar
-Exportadas pelo libS3ECore.so: s3eLoaderInit, s3e_loader_shutdown, s3e_loader_load, s3e_file_open, s3e_file_read, etc. (listar com nm -D).
-Dependências de GLIBC: todas as libs observadas exigem GLIBC 2.28 (compatível com NextOS).
-Carregamento de libs: se alguma .so pedir RTLD_LAZY/LAZY vs. RTLD_NOW.
-Linhas de syscalls no binário: verificar se existe dependência de futex, memcmp, pthread_create, etc.
-4. ABI a respeitar para o loader
-Arquitetura: ARMv7‑hard‑float (-march=armv7-a -mfpu=neon‑vfpv4 -mfloat‑abi=hard).
-Endianess: little‑endian.
-GLIBC: mínimo 2.28.
-5. Onde integrar o loader
-O launcher.sh (ou equivalente) do projeto já chama sims3_s3e_loader.
-O caminho esperado no pacote final (NextOS/PortMaster) parece ser a raiz do diretório de trabalho do jogo (igual ao Android), ou um sub‑diretório loader/. Confirmar lendo scripts/package-nextos-port.sh.
-6. Testes necessários depois da implementação
-Verificar que o loader inicializa sem chamadas de sistema Android (__system_property_get, etc.).
-Carregar de fato um .s3e (usar binário de teste arbitrário para confirmar I/O).
-Executar valgrind --tool=memcheck sob Linux para confirmar que não há dependências inesperadas.
-Testar em ambiente qemu-arm (Raspberry Pi Zero).
-Ativar logs do runtime S3E (s3elog) e analisar eventos de carga (s3e_loader_load_complete etc.).
-H. Evidências dos comandos principais
-Referência dos comandos usados (executados no ambiente WSL/Ubuntu, container Ubuntu 22.04):
+- `libS3ECore.so`
+- `libS3EFile.so`
+- `libS3EGfx.so`
+- `libS3EInput.so`
+- `libS3EShell.so`
+- `libS3ESocket.so`
+- `libS3EUtil.so`
+- `libc++.so`
+- `libz.so`
 
-Localizar o APK
-ls -lh "/mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk"
-Resultado: 79 159 148 bytes (75.5 MiB)
+It also mentioned `assets/*.s3e`, including example names `Resources.s3e`, `Audio.s3e`, `Maps.s3e` and `Models.s3e`.
 
-Calcular o SHA‑256
-sha256sum "/mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk"
-Resultado: 07709e5a8d261e7edaf43cedae7db0fc193532c03546a67e5a62823e2cca0e18 ts3_1.7.11-APK_Award.apk
+**Limit:** the previous report explicitly says its inventory was partial. The listed sizes and shortened hashes were inconsistent across duplicated sections, so they have been omitted rather than presented as reliable checksums. A complete inventory still needs to be generated from the actual APK.
 
-Ver tipos básicos das libs
-file /mnt/c/Users/Fabricio/Documents/Sims3/sims3_s3e_loader
-# (ex.: ELF 32-bit LSB executable, ARM, EABI5, Version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux-armhf.so.3)
-Verificar dependências GLIBC das libs do APK (amostra libS3ECore.so)
-readelf --version-info /mnt/c/Users/Fabricio/Documents/Sims3/lib/armeabi-v7a/libS3ECore.so | grep GLIBC
-Resultado: GLIBC_2.28 como máxima versão.
+## 3. ABI and dependency claims that need re-checking
 
-Listar contenido do APK (exemplo)
-unzip -l "/mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk" | head
-Resultado: aparentamento 15–20 arquivos .so em lib/armeabi-v7a/ e vários .s3e em assets/.
+The previous analysis claimed ELF32 ARM/EABI5, little-endian, hard-float, and a maximum GLIBC requirement of 2.28 for selected libraries.
 
-Inspecionar o manifesto Android (informativo)
-unzip -p "/mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk" AndroidManifest.xml | grep -E "package|versionName|versionCode|minSdk|targetSdk"
-Resultado: package="com.ea.sims3", android:versionName="1.7.11", android:versionCode="2", android:minSdkVersion="11", android:targetSdkVersion="23".
+These claims are **not yet a trustworthy ABI baseline**. Android native libraries normally target Android's Bionic runtime, so reports of a Linux glibc interpreter or GLIBC symbol requirements inside APK libraries must be checked against the actual ELF headers and dynamic sections. Do not assume that Android libraries can be loaded directly on NextOS just because they are ARM32.
 
-Conclusão
-O APK completo (ts3_1.7.11-APK_Award.apk, 75.5 MiB, SHA‑256 07709e5a…) é composto por bibliotecas nativas ARMv7 hard‑float que dependem de GLIBC 2.28.
-O runtime Marmalade/S3E é ativado através de funções de carregamento nativas (s3eLoaderInit, etc.), não por JNI explícito.
-O loader existente (sims3_s3e_loader) já foi compilado (130.4 KB) mas ainda não está integrado no APK.
-Existem todas as evidências para que outra IA realize a integração, desde que respeite a ABI ARMv7 hard‑float e as dependências de GLIBC.
-Os dados que faltam (sha256 completos, parse oficial via aapt dump badging, lista definitiva de .s3e) podem ser recuperados executando um script adicional (opcional).
-Este relatório fornece, em formato estruturado, as evidências técnicas necessárias para o desenvolvimento subsequente do loader NextOS.
+Before choosing compiler flags or a runtime strategy, inspect each relevant binary with `file`, `readelf -h -A -d --version-info` and `nm -D` (where supported). Save full output and hashes. Confirm the ABI from ELF attributes, not from the APK directory name alone.
 
-Relatório de investigação forense – The Sims 3 (APK Android)
-(para que outra IA possa desenvolver e integrar o loader ARMv7 hard‑float no projeto https://github.com/OlhaGatito/The-Sims-3-Android-port)
+## 4. Marmalade/S3E leads
 
-A. Identificação do APK
-Campo	Valor
-Nome do arquivo	ts3_1.7.11-APK_Award.apk
-Caminho no Windows (acesso via WSL)	C:\Users\Fabricio\Documents\Sims3\ts3_1.7.11-APK_Award.apk → /mnt/c/Users/Fabricio/Documents/Sims3/ts3_1.7.11-APK_Award.apk
-Tamanho	79 159 148 bytes (≈ 75,5 MiB)
-SHA‑256	07709e5a8d261e7edaf43cedae7db0fc193532c03546a67e5a62823e2cca0e18
-Tipo de arquivo	ZIP (APK) – reconhecido por file como “Android Package”
-Package (manifest)	com.ea.sims3
-Versão do app	versionName="1.7.11" – versionCode="2"
-SDK	minSdkVersion="11" (Android 3.0) – targetSdkVersion="23" (Android 6.0)
-Arquiteturas declaradas	armeabi-v7a (única ABI presente)
-Presença de OBB	Nenhum arquivo .obb encontrado nas pastas padrão (/mnt/c/Users/Fabricio/Documents/Sims3 nem em sub‑pastas). Caso o jogo use um OBB externo, ele não está presente no diretório analisado.
-B. Inventário de componentes nativos
-Caminho interno (APK)	Tipo	Tamanho (bytes)	SHA‑256 (exemplo)
-lib/armeabi-v7a/libc++.so	.so	2 274 768	1d0f7c9e…
-lib/armeabi-v7a/libS3ECore.so	.so	5 821 292	7b9e1a2d…
-lib/armeabi-v7a/libS3EFile.so	.so	815 624	4c6f9fbb…
-lib/armeabi-v7a/libS3EGfx.so	.so	3 102 155	a5e43d7c…
-lib/armeabi-v7a/libS3EInput.so	.so	1 024 987	9f2c1e8a…
-lib/armeabi-v7a/libS3EShell.so	.so	2 433 081	e3b41d33…
-lib/armeabi-v7a/libS3ESocket.so	.so	1 107 442	d8f5c6a9…
-lib/armeabi-v7a/libS3EUtil.so	.so	642 103	5b2e8d7f…
-lib/armeabi-v7a/libz.so	.so	108 236	3c9a0e5b…
-assets/Resources.s3e	.s3e	12 874 321	0b8c9d44…
-assets/Audio.s3e	.s3e	6 532 117	7e1a3c9d…
-assets/Maps.s3e	.s3e	9 845 210	a1d4f2b7…
-assets/Models.s3e	.s3e	8 210 983	9c3e5f8a…
-AndroidManifest.xml	XML	3 254	—
-resources.arsc	binário Android	1 896 432	—
-Obs.: Apenas um subconjunto dos arquivos foi listado aqui; o script usado gerou um CSV completo (apk_inventory.csv) contendo todos os .so e .s3e com seus tamanhos e hashes. Caso precise do CSV integral, ele está pronto para ser exibido.
+The previous report associates the APK with the Marmalade/S3E runtime and mentions names such as `s3eLoaderInit`, `s3eLoaderLoad`, `s3eLoaderShutdown`, `s3eFileOpen`, `s3eFileRead` and `s3eFileClose`.
 
-C. Arquitetura e ABI das bibliotecas (exemplo de duas libs)
-1. libS3ECore.so
-$ file lib/armeabi-v7a/libS3ECore.so
-ELF 32-bit LSB shared object, ARM, EABI5 version 1 (SYSV), dynamically linked,
-interpreter /lib/ld-linux-armhf.so.3, BuildID[sha1]=..., for GNU/Linux 2.6.26, not stripped
-Classe: ELF 32‑bit
-Máquina: ARM (EABI5)
-Endianess: little‑endian
-Hard‑float: Confirmado pelo atributo Tag_ABI_VFP_args (VFP registers) presente em readelf -A.
-GLIBC requerida (versão mais alta): GLIBC_2.28 (ver readelf --version-info).
-DT_NEEDED (dependências principais): libc.so.6, libdl.so.2, libm.so.6, libpthread.so.0.
-2. libc++.so (exemplo de biblioteca padrão)
-$ readelf -h lib/armeabi-v7a/libc++.so | grep Machine
-  Machine:                           ARM
-Também ELF 32‑bit ARM, hard‑float, GLIBC_2.28 como versão máxima.
-Todas as .so do APK apresentam o mesmo padrão de arquitetura e versão de GLIBC – o que garante compatibilidade direta com o ambiente NextOS (que usa glibc 2.28).
+These names and their claimed roles still require confirmation against actual exported/undefined symbols and call sites. The previous report also made claims about ZIP/base64 encoding, extraction to Android cache, dynamic loading, and the absence of JNI dependencies without providing complete supporting output. Do not implement a loader based solely on those claims.
 
-D. Runtime Marmalade / S3E
-Item	Evidência	Interpretação
-Ponto de entrada do runtime	Funções s3eLoaderInit, s3eLoaderLoad, s3eLoaderShutdown exportadas por libS3ECore.so (listadas por nm -D).	O loader deve chamar s3eLoaderInit para iniciar o runtime.
-Carregamento de recursos	Arquivos .s3e dentro de assets/ (ex.: Resources.s3e, Audio.s3e). Cada .s3e é um contêiner ZIP que inclui sub‑binaries e assets.	O loader precisa localizar o diretório assets/ (ou o cache de extração) e abrir os .s3e usando a API de arquivos S3E (s3eFileOpen, s3eFileRead).
-Integração com Java/JNI	Nenhum símbolo JNI_OnLoad nem Java_* encontrado nas libs (busca por strings).	O runtime não depende de código Java ativo; o loader pode ser puramente nativo, sem ponte JNI, porém o Android launcher normalmente carrega as libs via System.loadLibrary. Para NextOS, basta chamar as funções do runtime diretamente.
-Mecanismo de descoberta	As libs são carregadas dinamicamente via dlopen dentro de libS3EShell.so (presente nas strings).	O loader precisará garantir que todas as libs dependentes estejam disponíveis no mesmo diretório (lib/armeabi‑v7a/ ou equivalente).
-Arquitetura de arquivos de dados	Os arquivos .s3e contêm sub‑binaries e recursos usados em tempo de execução (ex.: texturas, sons, mapas).	O loader deve ser capaz de ler esses arquivos (ZIP) e passar os ponteiros ao runtime S3E.
-E. Estado do projeto (repositório GitHub)
-Arquivo / Diretório	Localização no seu disco	Função/Observação
-Makefile	C:\Users\Fabricio\Documents\Sims3\Makefile	Define compilação do loader com flags -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard.
-src/ (código C)	C:\Users\Fabricio\Documents\Sims3\src\	Fonte do loader (main.c, s3e_*.c, etc.).
-scripts/build-loader-nextos.sh	C:\Users\Fabricio\Documents\Sims3\scripts\build-loader-nextos.sh	Script de build que invoca make e produz o binário sims3_s3e_loader.
-scripts/package-nextos-port.sh	C:\Users\Fabricio\Documents\Sims3\scripts\package-nextos-port.sh	Empacota o APK final; espera que o loader esteja presente em lib/armeabi-v7a/.
-The Sims 3.sh	C:\Users\Fabricio\Documents\Sims3\The Sims 3.sh	Wrapper de execução que invoca o loader (./sims3_s3e_loader).
-port.json	C:\Users\Fabricio\Documents\Sims3\port.json	Metadados do port (nome, versão, requisitos).
-docs/NEXTOS-SDK-FLOW.md	C:\Users\Fabricio\Documents\Sims3\docs\NEXTOS-SDK-FLOW.md	Guia de fluxo de integração com NextOS.
-Loader binário	C:\Users\Fabricio\Documents\Sims3\sims3_s3e_loader	Já compilado (130 KB) mas não está ainda incluído no APK nem na estrutura lib/armeabi‑v7a/.
-Outros loaders	Não há outros binários .so que atuem como loader; apenas as bibliotecas S3E.	Portanto, o “novo loader” a ser desenvolvido será este mesmo binário (ou eventual substituto).
-F. Dados que ainda faltam (blind spots)
-Dado ausente	Por que ainda falta	Como obter
-SHA‑256 de todas as .so e .s3e (CSV completo)	Apenas um subconjunto foi exibido por questões de brevidade.	Executar sha256sum sobre extracted_libs/**/*.so e extracted_assets/**/*.s3e; o CSV já foi gerado (apk_inventory.csv).
-Dump oficial de aapt dump badging	O pacote aapt não está presente nos repositórios padrão do Ubuntu, e a alternativa (apkanalyzer) não foi instalada.	Instalar Android SDK Build‑Tools no WSL ou usar apkanalyzer para obter o dump.
-Lista completa de DT_NEEDED / SONAME de cada .so	Apenas as duas libs mais relevantes foram mostradas.	Rodar readelf -d em cada .so e agregar resultados.
-Possíveis arquivos .obb externos	Nenhum .obb encontrado nas pastas analisadas, mas o jogo pode usar OBB armazenado em outra localização do usuário.	Pedir ao usuário o caminho onde ele costuma guardar OBB (geralmente Android/obb/com.ea.sims3/) e fazer o sha256sum desses arquivos.
-Mapeamento exato do caminho de integração no pacote NextOS	O script de empacotamento (package-nextos-port.sh) menciona copiar o loader para lib/armeabi-v7a/, mas não há confirmação de que o caminho de runtime do launcher corresponda a esse diretório.	Rever o script linha‑a‑linha (já feito) e confirmar que o launcher (The Sims 3.sh) usa ./sims3_s3e_loader no diretório raiz; se necessário, adaptar o script para copiar o binário para o diretório esperado.
-G. Briefing técnico para a IA desenvolvedora do loader
-1. Objetivo do loader
-Inicializar o runtime Marmalade/S3E chamando s3eLoaderInit (ou equivalente) e, em seguida, s3eLoaderLoad apontando para os arquivos .s3e que contêm o código e os assets do jogo.
-Expor as funções esperadas pelo runtime (s3eLoaderInit, s3eLoaderShutdown, s3eLoaderLoad, s3eFileOpen, s3eFileRead, s3eFileClose, etc.).
-Manter a ABI: ARMv7 hard‑float (-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard).
-Linkar dinamicamente contra as bibliotecas nativas disponíveis no APK (libS3ECore.so, libS3EFile.so, libS3EGfx.so, etc.) – sem usar -static e sem alterar as dependências da GLIBC.
-Compatibilidade GLIBC: usar a mesma versão que as libs requerem (GLIBC_2.28).
-Localização de recursos: O loader deve procurar os .s3e dentro do diretório assets/ (ou no caminho de cache que o próprio runtime cria). A partir daí, usar a API S3E (s3eFileOpen, etc.) para ler os conteúdos.
-2. Arquivos envolvidos
-Tipo	Caminho no APK (exemplo)	Uso
-Loader binário	sims3_s3e_loader (gerado na raiz do repositório)	Executável que o launcher (The Sims 3.sh) chama.
-Bibliotecas de runtime	lib/armeabi-v7a/libS3ECore.so, lib/armeabi-v7a/libS3EFile.so, lib/armeabi-v7a/libS3EGfx.so, lib/armeabi-v7a/libS3EInput.so, etc.	Fornecem a implementação S3E; devem estar presentes no APK final, no diretório lib/armeabi-v7a/.
-Assets / código compactado	assets/*.s3e	Contêm o jogo propriamente dito; o loader deve abrir esses arquivos via API S3E.
-Manifesto	AndroidManifest.xml	Usa‑se apenas para confirmar package/versão – o loader não depende dele.
-Recursos de suporte	resources.arsc	Não afeta o loader nativo.
-3. Interfaces a validar
-Exportadas por libS3ECore.so (ver nm -D):
-s3eLoaderInit – inicia o motor.
-s3eLoaderShutdown – fecha tudo.
-s3eLoaderLoad – carrega um módulo .s3e.
-s3eFileOpen, s3eFileRead, s3eFileClose – acesso a arquivos dentro dos .s3e.
-Dependências dinâmicas (de readelf -d):
-libc.so.6, libdl.so.2, libm.so.6, libpthread.so.0.
-Todas disponíveis na distro base do NextOS (glibc 2.28).
-Nenhum JNI está presente, portanto não é necessário implementar ponte JNI a menos que o launcher futuro exija alguma chamada Java.
-4. Onde integrar o loader no pacote NextOS
-Compilar o loader usando o Makefile já presente (flags corretas). O binário resultante deve ficar em sims3_s3e_loader.
-Copiar o binário para o diretório dentro do APK que será empacotado:
-lib/armeabi-v7a/sims3_s3e_loader OU colocar na raiz do APK e ajustar o launcher (The Sims 3.sh) para usar o caminho relativo correto.
-O script scripts/package-nextos-port.sh já espera que o loader esteja presente na estrutura lib/armeabi-v7a/.
-Garantir que todas as bibliotecas S3E estejam também em lib/armeabi-v7a/. Elas já vêm do APK original; o script de empacotamento deve incluí‑las sem alterações.
-5. Testes de validação pós‑implementação
-Teste	Objetivo	Como validar
-Execução do loader	Ver que o binário inicia sem crashes.	./sims3_s3e_loader --version (ou simplesmente rodar e observar código de retorno).
-Chamada a s3eLoaderInit	Confirmar que o runtime S3E inicializa corretamente.	Inserir um printf de depuração no loader (não permitido aqui) ou observar logs de s3elog (se habilitado).
-Carregamento de um .s3e	Garantir que s3eLoaderLoad consegue abrir assets/Resources.s3e.	Executar o loader com o caminho para o .s3e e checar retorno 0.
-Dependência GLIBC	Confirmar que o binário não exige símbolos > 2.28.	readelf --version-info sims3_s3e_loader → máximo GLIBC_2.28.
-Integração no APK	Ver que o APK final contém o loader e todas as libs.	`unzip -l final_port.apk
-Execução no NextOS	Testar o port em um ambiente real (Docker/VM do NextOS).	Instalar o APK através do PortMaster e iniciar; observar se o jogo inicia sem mensagens “missing library”.
-H. Evidências dos principais comandos (mostrados resumidamente)
-Comando	Saída resumida
-sha256sum ts3_1.7.11-APK_Award.apk	07709e5a8d261e7edaf43cedae7db0fc193532c03546a67e5a62823e2cca0e18
-`unzip -p ts3_1.7.11-APK_Award.apk AndroidManifest.xml	grep -E "package
-`unzip -l ts3_1.7.11-APK_Award.apk	grep ".so"`
-file lib/armeabi-v7a/libS3ECore.so	ELF 32-bit LSB shared object, ARM, EABI5, dynamically linked, interpreter /lib/ld-linux-armhf.so.3
-`readelf --version-info lib/armeabi-v7a/libS3ECore.so	grep GLIBC`
-`nm -D lib/armeabi-v7a/libS3ECore.so	grep s3eLoader`
-`strings lib/armeabi-v7a/libS3ECore.so	grep -i s3e_
-grep -R "System.loadLibrary" extracted_libs 2>/dev/null	nenhum resultado (nenhum código Java presente nas libs)
-Próximos passos recomendados para a equipe de desenvolvimento
-Obter o CSV completo (apk_inventory.csv) e, se preferir, revisá‑lo manualmente para garantir que nenhuma .so ou .s3e tenha sido omitida.
-Executar aapt dump badging (instalar Android SDK Build‑Tools no WSL) para confirmar oficialmente os metadados do APK.
-Compilar o loader com o Makefile já fornecido (confirma o uso correto das flags ARMv7 hard‑float).
-Inserir o binário compilado no diretório lib/armeabi-v7a/ do APK (ou ajustar o script de empacotamento para copiar o loader para o local esperado).
-Re‑empacotar o APK usando scripts/package-nextos-port.sh e testar a execução no NextOS/PortMaster.
-Caso existam OBB externos, solicitar ao usuário o caminho onde guardou esses arquivos para incluí‑los no pacote ou apontar o loader para eles.
-Conclusão
-Todas as informações necessárias para que uma segunda IA (ou desenvolvedor) crie e integre o novo loader foram coletadas e organizadas. O APK contém apenas arquitetura ARMv7 hard‑float, GLIBC 2.28 e bibliotecas S3E que o loader deve inicializar. Não há dependências JNI ou componentes Android que impeçam a execução direta no ambiente Linux/NextOS, desde que o loader respeite a ABI e que as bibliotecas sejam disponibilizadas no mesmo diretório lib/armeabi‑v7a/.
+## 5. Current repository integration points
 
-Qualquer ponto adicional (inventário completo, dump aapt, análise de uma lib específica, localização de OBB) pode ser gerado mediante nova solicitação; o ambiente WSL está preparado para lê‑los sem modificar nada.
+The repository currently contains these relevant paths:
+
+- Launcher: `The Sims 3.sh`
+- Existing tracked executable: `sims3_s3e_loader`
+- Build and verification scripts: `scripts/build-loader-nextos.sh`, `scripts/verify-loader-nextos.sh`
+- Packaging script: `scripts/package-nextos-port.sh`
+- Metadata: `port.json`
+- Libraries: `libs.armhf/`
+- Loader-related sources may exist elsewhere in the repository; inspect the current tree before assuming paths from the old report.
+
+The previous report referred to a local source path `src/main.c`, but that path was not established as a current repository path by the report itself. Likewise, it proposed both the port root and `lib/armeabi-v7a/` as possible loader destinations. These are not interchangeable: the correct destination must be derived from the current launcher and package script. The loader is a Linux port executable, not something that should be inserted into the original APK.
+
+## 6. Outstanding verification checklist
+
+1. Confirm that the APK exists at the reported WSL path and recalculate its SHA-256.
+2. Produce a complete archive listing and inventory of all `.so` and `.s3e` files, with exact sizes and SHA-256 values.
+3. Capture full ELF headers, ARM attributes, dynamic dependencies, symbol versions and exported/undefined symbols for relevant libraries.
+4. Inspect DEX/manifest references for native-library loading and JNI entry points; absence of JNI symbols in native libraries alone does not prove that Java/JNI is unused.
+5. Determine the real S3E payload format and loading sequence from evidence, not assumptions.
+6. Read the current launcher and packaging script to establish the exact executable path consumed at runtime and included in the port package.
+7. Verify whether the tracked `sims3_s3e_loader` is the intended new build; compare its hash and ELF metadata with any local build artifact.
+8. Only after these checks, write the loader implementation plan and perform a separate build/integration step.
+
+## 7. Key cautions
+
+- No complete, independently verified APK inventory is recorded here yet.
+- ABI and GLIBC claims from the earlier report remain unverified.
+- The old report contains duplicate sections and conflicting integration paths; those duplicated claims have been removed.
+- No gameplay, graphics, audio, controls, save, or on-device runtime success should be inferred from static APK analysis or a successful compilation.

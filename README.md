@@ -1,5 +1,5 @@
 # The Sims 3 - NextOS Universal Port
-**BYO-data** • **NextOS-compatible** • **ARMv7/AArch64**
+**BYO-data** • **NextOS workflow in progress** • **ARMv7 hard-float**
 
 > Universal port for handheld Linux devices (muOS, ArkOS, ROCKNIX, NextOS, PortMaster)
 
@@ -9,33 +9,34 @@
 
 ```
 sims3/
-├── The Sims 3.sh          # Launcher (PortMaster compatible)
-├── port.json              # PortMaster metadata (NextOS)
-├── extractor.json         # Gatito extraction recipe
-├── gatito-extract/        # Gatito extractor engine
-├── hooks/                 # NXExtract hooks (unpack-s3e.sh)
-├── libs.armhf/            # ARMv7 libraries + S3E stubs
-├── libs.aarch64/          # AArch64 libraries + S3E stubs
-├── run.sh                 # Runtime with smart fallback
-├── run-fallback.sh        # Compatibility fallback
-├── port_compat.sh         # Audio/video detection
-├── sims3-port-bootstrap.sh # PortMaster bootstrap
-├── sims3_s3e_loader       # ARMv7 loader (required)
-├── sims3_s3e_loader_aarch64 # AArch64 loader (optional)
-└── docs/                  # Documentation
+├── The Sims 3.sh           # Launcher PortMaster
+├── port.json               # PortMaster metadata
+├── extractor.json          # NXExtract recipe (ainda precisa de validação real)
+├── hooks/                  # Hooks específicos do S3E
+├── nxextract/              # Engine, UI, runner e ambiente isolado NXExtract
+├── libs.armhf/             # Stubs ARMv7 atualmente versionados
+├── run.sh                  # Runtime principal
+├── run-fallback.sh         # Fallback de compatibilidade
+├── port_compat.sh           # Detecção de áudio/vídeo
+├── detect_system.sh         # Diagnóstico do ambiente
+├── sims3-port-bootstrap.sh # Bootstrap PortMaster/NextOS
+└── sims3_s3e_loader        # Loader ARMv7 hard-float
+
 ```
 
 ---
 
 ## 🎯 Compatibility Matrix
 
-| CFW | Kernel | Loader | Status |
-|-----|--------|--------|--------|
-| muOS | ARMv7 | ARMv7 | ✅ Full |
-| ArkOS | ARMv7 | ARMv7 | ✅ Full |
-| ROCKNIX | AArch64 | ARMv7 (32-bit compat) | ✅ Full |
-| NextOS | AArch64 | ARMv7 (32-bit compat) | ✅ Full |
-| PortMaster | Mixed | ARMv7 (default) | ✅ Full |
+| CFW | Caminho esperado | Status |
+|-----|-----------------|--------|
+| muOS | Loader ARMv7 hard-float | Requer teste no aparelho |
+| ArkOS | Loader ARMv7 hard-float | Requer teste no aparelho |
+| ROCKNIX | ARMv7 via compatibilidade de 32 bits | Requer teste no aparelho |
+| NextOS | ARMv7 via compatibilidade de 32 bits | Requer teste no aparelho |
+| PortMaster | Depende do firmware e do suporte ARM32 | Requer teste no aparelho |
+
+**Importante:** build e inspeção ELF não equivalem a compatibilidade de runtime. Esta tabela não declara gameplay, áudio, vídeo, controles ou saves aprovados.
 
 ---
 
@@ -61,16 +62,9 @@ sims3/
 
 ### First Launch
 
-```bash
-# The launcher will:
-# 1. Detect CFW (muOS/ROCKNIX/NextOS/ArkOS)
-# 2. Check for existing extraction
-# 3. Launch Gatito Extractor (GUI, ~15 min)
-# 4. Validate S3E header (XE3U)
-# 5. Start game
+O launcher detecta o firmware, valida os arquivos e chama o runner NXExtract quando a instalação precisa ser feita. **A recipe `extractor.json` ainda precisa de validação contra uma cópia real do APK do Sims 3**; não assuma que a extração está aprovada apenas porque o runner existe.
 
-# Data is stored in: /storage/roms/ports/sims3/game/
-```
+O payload esperado pelo loader é criado em `game/game.s3e.unpacked`. Mantenha APK/OBB e dados proprietários fora do Git.
 
 ---
 
@@ -85,26 +79,28 @@ sims3/
   - Video/audio fallback detection
   - Signal handling (graceful shutdown)
 
-### 2. **gatito-extract/** (Extractor Engine)
-- **Engine:** `gatito-extract-v3.py`
-- **UI:** `BUILD.ui/gatito-ui.py`
-- **Pattern:** Follows NXExtract v3 specification
-- **Hooks:** `hooks/unpack-s3e.sh` (S3E LZMA → XE3U)
+### 2. **nxextract/** (Extractor Engine)
+- **Engine:** `nxextract/nxextract.py`
+- **UI:** `nxextract/nxextract-ui`
+- **Runner:** `nxextract/run-extractor.sh`
+- **Runtime boundary:** `nxextract/nxextract-runtime-env.sh`
+- **Recipe:** `extractor.json` define como localizar e validar os dados do APK; a recipe específica do Sims 3 ainda exige teste real.
+- **Hook:** `hooks/unpack-s3e.sh` tenta produzir o payload S3E esperado.
 
-### 3. **libs.armhf/** & **libs.aarch64/** (Libraries)
+### 3. **libs.armhf/** (Libraries)
 - **S3E Stubs:**
   - `libs3eAndroidJNI.so` - JNI interface stub
   - `libs3eVFS.so` - Virtual file system stub
-- **Purpose:** Prevent crashes when extensions are missing
+- **Limite:** os dois stubs ARMHF atualmente versionados têm conteúdo idêntico; isso não prova que implementem JNI/VFS nem que evitem crashes. Validar símbolos exportados e comportamento antes de depender deles.
 
-### 4. **run.sh** (Runtime)
-- **Role:** Smart launcher with fallback
-- **Features:**
-  - CFW detection
-  - Loader selection (ARMv7/AArch64)
-  - S3E validation
-  - Auto fallback (fbcon/kmsdrm/wayland)
-  - Dual-mount data reuse
+### 4. **scripts/** (Build e validação)
+- `scripts/nextos-bootstrap.sh`: valida a imagem do SDK NextOS e as ferramentas.
+- `scripts/build-loader-nextos.sh`: compila o loader ARMv7 hard-float no SDK.
+- `scripts/verify-loader-nextos.sh`: verifica arquitetura, ABI, ligação dinâmica e GLIBC.
+- `scripts/test-shell-scripts.sh`: valida sintaxe de todos os scripts shell.
+- `scripts/package-nextos-port.sh`: gera o pacote BYO-data sem dados proprietários.
+
+Os antigos `run.sh`, `run-fallback.sh`, `port_compat.sh`, `detect_system.sh` e `sims3-port-bootstrap.sh` foram removidos por serem caminhos paralelos/duplicados não chamados pelo launcher principal. O launcher `The Sims 3.sh` contém o fluxo ativo de runtime. Os scripts dentro de `nxextract/` e `hooks/` permanecem porque são dependências reais da instalação de dados.
 
 ---
 
@@ -185,7 +181,7 @@ hexdump -C game/game.s3e | head -1
 | **Capabilities declaration** | Hardware requirements | ✅ NXCOMPAT_REQUIRED_CAPABILITIES |
 | **BYO-data** | No game included | ✅ S3E extraction required |
 | **LD_PRELOAD stubs** | Missing extensions | ✅ S3E stub libraries |
-| **Smart fallback** | Auto video/audio detection | ✅ run.sh smart mode |
+| **Smart fallback** | Auto video/audio detection | ⚠️ Requires device testing |
 
 ---
 
@@ -200,6 +196,8 @@ hexdump -C game/game.s3e | head -1
   "title": "The Sims 3"
 }
 ```
+
+A entrada `aarch64` descreve hosts AArch64 que conseguem executar o loader ARM32; ela não significa que exista um loader AArch64 nativo neste repositório.
 
 ---
 
@@ -219,3 +217,21 @@ Issues, questions, or improvements? Check out the official port:
 ---
 
 **⚠️ BYO-data warning:** This port requires extracting The Sims 3 Android APK (game.s3e) from your own backup. No game files are included.
+
+---
+
+## 🧰 Build reproduzível com o SDK NextOS
+
+O build de desenvolvimento do loader ARMv7 hard-float deve usar a imagem documentada `nextos-public-sdk:1`; os scripts não substituem o SDK por GCC nativo do WSL.
+
+```bash
+bash scripts/nextos-bootstrap.sh
+bash scripts/build-loader-nextos.sh
+bash scripts/verify-loader-nextos.sh
+bash scripts/test-shell-scripts.sh
+bash scripts/package-nextos-port.sh
+```
+
+O artefato compilado fica em `build/nextos/sims3_s3e_loader` e o pacote BYO-data em `build/nextos/sims3.zip`. Os loaders versionados na raiz e em `loader/` não são sobrescritos por esse fluxo. Consulte [docs/NEXTOS-SDK-FLOW.md](docs/NEXTOS-SDK-FLOW.md) para as verificações e limitações.
+
+A verificação ELF confirma propriedades de compilação/ABI, não a execução do jogo. Compatibilidade de gráficos, áudio, controles, saves e gameplay só pode ser confirmada com testes no dispositivo e logs reais.

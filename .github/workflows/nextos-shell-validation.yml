@@ -1,0 +1,28 @@
+name: NextOS Shell Validation
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - "**/*.sh"
+      - ".github/workflows/nextos-shell-validation.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/*.sh"
+      - ".github/workflows/nextos-shell-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  shell-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Syntax-check all shell scripts
+        run: bash scripts/test-shell-scripts.sh

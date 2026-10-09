@@ -2304,56 +2304,9 @@ static void *g_s3e_thread_table[S3E_THREAD_SLOTS] = {
     (void *)(uintptr_t)&s3e_thread_ok19,         /* 19                        */
 };
 
-/* ==== The Sims 3 (NextOS): extensao s3eVFS =================================
-   O proprio jogo denuncia a falta pelo assert "error loading extension: s3eVFS"
-   (e "s3eAndroidJNI"). Medido pelo log de pedidos:
-       s3eAndroidJNI = hash 0xa3eccaf2, 16 bytes?  -> 4 bytes = 1 slot
-       s3eVFS        = hash 0x17f48c9f, 16 bytes   -> 4 slots
-   Antes de implementar, MEDIR: entregamos 4 tocos que so registram qual slot
-   foi chamado e com quais argumentos. Ligado por SIMS3_VFS_PROBE=1 para o
-   binario de sempre continuar como esta ate a semantica estar provada. */
-#define S3E_VFS_HASH 0x17f48c9fu
-#define S3E_ANDROID_JNI_HASH 0xa3eccaf2u
-
-static int32_t vfs_probe_slot(int slot, uintptr_t a0, uintptr_t a1, uintptr_t a2,
-                              uintptr_t a3) {
-    fprintf(stderr, "[vfs] slot %d(0x%lx, 0x%lx, 0x%lx, 0x%lx)", slot, (unsigned long)a0,
-            (unsigned long)a1, (unsigned long)a2, (unsigned long)a3);
-    {
-        uintptr_t args[4] = {a0, a1, a2, a3};
-        for (int k = 0; k < 4; k++) {
-            uintptr_t p = args[k];
-            if (p <= 0x1000u || !reg_readable(p, 4)) continue;
-            const char *t = (const char *)p;
-            int ok = 1, len = 0;
-            for (; len < 60 && t[len]; len++)
-                if ((unsigned char)t[len] < 32 || (unsigned char)t[len] > 126) { ok = 0; break; }
-            if (ok && len > 1) fprintf(stderr, "  a%d=\"%.60s\"", k, t);
-        }
-    }
-    fprintf(stderr, "\n");
-    fflush(stderr);
-    return 0;
-}
-
-static int32_t vfs_p0(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d) {
-    return vfs_probe_slot(0, a, b, c, d);
-}
-static int32_t vfs_p1(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d) {
-    return vfs_probe_slot(1, a, b, c, d);
-}
-static int32_t vfs_p2(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d) {
-    return vfs_probe_slot(2, a, b, c, d);
-}
-static int32_t vfs_p3(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d) {
-    return vfs_probe_slot(3, a, b, c, d);
-}
-
 int32_t s3eExtGetHash(uint32_t hash, void *iface, uint32_t size) {
-    /* O jogo NOMEIA a extensao que faltou (o assert diz "error loading
-       extension: s3eVFS" / "s3eAndroidJNI"), mas nao diz o hash. Registrando
-       hash+tamanho de cada pedido da para casar um com o outro e saber quantos
-       slots a tabela precisa ter. */
+    /* SIMS3_EXT_LOG=1 registra hash+tamanho de cada pedido de extensao: da para
+       saber quantos slots a tabela precisa ter sem adivinhar. */
     if (getenv("SIMS3_EXT_LOG")) {
         fprintf(stderr, "[ext] pedido hash=0x%08x size=%u (%u slots)\n", hash, size,
                 size / (unsigned)sizeof(void *));
@@ -2368,36 +2321,6 @@ int32_t s3eExtGetHash(uint32_t hash, void *iface, uint32_t size) {
         }
         fprintf(stderr, "[thread] s3eThread pedida com size=%u (esperado %u) — recusada\n", size,
                 (unsigned)sizeof(g_s3e_thread_table));
-        return 1;
-    }
-
-    if (hash == S3E_ANDROID_JNI_HASH && getenv("SIMS3_JNI_PROBE")) {
-        /* Sondagem: 1 slot. Este port nao tem VM Java, entao a funcao so
-           registra que foi chamada e devolve 0. Serve para descobrir SE o jogo
-           chega a usar a ponte JNI depois de aceitar a extensao. */
-        void *jni_table[1] = {(void *)(uintptr_t)&vfs_p0};
-        if (iface && size == sizeof(jni_table)) {
-            memcpy(iface, jni_table, size);
-            fprintf(stderr, "[jni] tabela de sondagem entregue (1 slot)\n");
-            fflush(stderr);
-            return 0;
-        }
-        return 1;
-    }
-
-    if (hash == S3E_VFS_HASH && getenv("SIMS3_VFS_PROBE")) {
-        void *vfs_table[4] = {
-            (void *)(uintptr_t)&vfs_p0,
-            (void *)(uintptr_t)&vfs_p1,
-            (void *)(uintptr_t)&vfs_p2,
-            (void *)(uintptr_t)&vfs_p3,
-        };
-        if (iface && size == sizeof(vfs_table)) {
-            memcpy(iface, vfs_table, size);
-            fprintf(stderr, "[vfs] tabela de sondagem entregue (4 slots)\n");
-            fflush(stderr);
-            return 0;
-        }
         return 1;
     }
 

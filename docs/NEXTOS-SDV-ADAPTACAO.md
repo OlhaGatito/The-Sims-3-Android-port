@@ -1,5 +1,12 @@
 # Adaptação da arquitetura sdvnextos do NextOS
 
+> **Nota — estado atual:** esta página é um **registro histórico** da adaptação
+> de 2026-09-28 (backup `backup/pre-sdvnextos-adaptation-2026-09-28`). Desde
+> então o `run.sh` foi **removido**; hoje o runtime é embutido no launcher único
+> `The Sims 3.sh`, que chama o NxExtract (`nxextract/run-extractor.sh`) e só
+> então o loader. As menções a `run.sh` abaixo descrevem o estado daquela
+> adaptação, não o repositório atual. Fluxo atual: ver `NEXTOS-SDK-FLOW.md`.
+
 ## Objetivo
 
 Este port passa a seguir a arquitetura de runtime usada pelo `sdvnextos` do NextOS onde ela é aplicável ao The Sims 3:

@@ -16,9 +16,12 @@ bash scripts/build-loader-nextos.sh
 bash scripts/verify-loader-nextos.sh
 bash scripts/test-shell-scripts.sh
 bash scripts/package-nextos-port.sh
+
+# Ou o pipeline completo (extração → build → verificação → pacote → relatório):
+bash scripts/reconstruct-port.sh /caminho/para/o.apk
 ```
 
-O pacote executável é escrito em `build/nextos/sims3.zip`. O loader de build fica em `build/nextos/sims3_s3e_loader`.
+O pacote executável é escrito em `build/nextos/sims3.zip`. O loader de build fica em `build/nextos/sims3_s3e_loader`. O relatório da reconstrução fica em `build/reconstruction-report.txt`.
 
 ### O que cada etapa faz
 
@@ -36,4 +39,4 @@ Build bem-sucedido e inspeção ELF não provam que o jogo inicia nem que gráfi
 
 ## Limpeza de scripts legados
 
-O launcher `The Sims 3.sh` é a única entrada principal do jogo e mantém o padrão PortMaster/NextOS. Foram removidos os caminhos redundantes `run.sh`, `run-fallback.sh`, `port_compat.sh`, `detect_system.sh`, `sims3-port-bootstrap.sh` e `build-stubs.sh`. Permanecem apenas os scripts de extração chamados pelo launcher/recipe (`nxextract/run-extractor.sh`, `nxextract/nxextract-runtime-env.sh` e `hooks/unpack-s3e.sh`) e os scripts de desenvolvimento em `scripts/`. Não foram apagados os loaders nem as bibliotecas versionadas. A compatibilidade em runtime continua pendente de teste real no dispositivo.
+O launcher `The Sims 3.sh` é a única entrada principal do jogo e mantém o padrão PortMaster/NextOS. Foram removidos os caminhos redundantes `run.sh`, `run-fallback.sh`, `port_compat.sh`, `detect_system.sh`, `sims3-port-bootstrap.sh` e `build-stubs.sh`. Na reconstrução também foi removido o diretório `hooks/` (o decoder de payload foi migrado para `nxextract/unpack-s3e.py`) e o `sims3-stubs.c` órfão, e `libs.armhf/` foi consolidado em `libs/`. Permanecem apenas os scripts de extração chamados pelo launcher/recipe (`nxextract/run-extractor.sh`, `nxextract/nxextract-runtime-env.sh` e `nxextract/unpack-s3e.py`) e os scripts de desenvolvimento em `scripts/`. Não foram apagados os loaders nem as bibliotecas versionadas. A compatibilidade em runtime continua pendente de teste real no dispositivo.

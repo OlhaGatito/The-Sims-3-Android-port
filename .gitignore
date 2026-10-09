@@ -14,6 +14,10 @@ game/*
 build/
 dist/
 
+# Python bytecode (from py_compile / running nxextract)
+__pycache__/
+*.pyc
+
 # Logs/dumps
 *.log
 *.dump

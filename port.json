@@ -4,7 +4,7 @@
       "armhf",
       "aarch64"
     ],
-    "min_glibc": "2.17",
+    "min_glibc": "2.22",
     "title": "The Sims 3"
   },
   "items": [
@@ -12,8 +12,7 @@
     "port.json",
     "extractor.json",
     "nxextract/",
-    "hooks/",
-    "libs.armhf/",
+    "libs/",
     "sims3_s3e_loader",
     "INSTAL.md",
     "COMPATIBILIDADE.md",

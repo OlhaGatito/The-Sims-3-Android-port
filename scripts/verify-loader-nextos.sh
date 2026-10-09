@@ -20,7 +20,11 @@ bin="/repo/$BIN_REL"
 max_glibc="$MAX_GLIBC"
 
 echo "=== file ==="
-file "$bin"
+if command -v file >/dev/null 2>&1; then
+  file "$bin"
+else
+  echo "(file ausente no SDK; readelf abaixo fornece todas as verificacoes reais)"
+fi
 echo "=== ELF header ==="
 readelf -h "$bin"
 echo "=== ARM attributes ==="

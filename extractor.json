@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "sims3-s3e",
-  "version": "2",
+  "version": "3",
   "title": "The Sims 3 S3E",
   "abi_order": ["armeabi"],
   "input": {
@@ -28,20 +28,17 @@
   "hooks": [
     {
       "id": "unpack-s3e",
-      "argv": ["bash", "{recipe_dir}/hooks/unpack-s3e.sh"],
+      "argv": [
+        "python3",
+        "{recipe_dir}/nxextract/unpack-s3e.py",
+        "{stage}/game/s3e",
+        "{stage}/game/game.s3e.unpacked",
+        "--loader",
+        "{game_dir}/sims3_s3e_loader"
+      ],
       "cwd": "{game_dir}",
       "checkpoint": [
         {"path": "game/game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
-      ],
-      "fallbacks": [
-        {
-          "id": "python-lzma",
-          "title": "Decoder Python LZMA-alone",
-          "argv": ["python3", "{recipe_dir}/hooks/unpack-s3e-python.py", "{stage}/game/s3e", "{stage}/game/game.s3e.unpacked"],
-          "checkpoint": [
-            {"path": "game/game.s3e.unpacked", "type": "file", "min_size": 1048576, "magic_hex": "58453355"}
-          ]
-        }
       ]
     }
   ],

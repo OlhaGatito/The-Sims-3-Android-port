@@ -2,20 +2,34 @@
 
 ## Pré-requisitos
 
-- **Handheld com PortMaster** (muOS, ArkOS, ROCKNIX, NextOS ou similar)
-- **APK + OBB** do The Sims 3 (seu próprio backup)
-- **~2 GB de espaço livre** no cartão (jogo extraído)
-- **Bibliotecas 32-bit:** SDL2, libEGL, libGLES (geralmente pré-instaladas)
+- **Handheld ARM Linux com PortMaster/NextOS** (muOS, ArkOS, ROCKNIX, NextOS ou similar)
+- **APK** do The Sims 3 (seu próprio backup). O **OBB** é opcional mas recomendado
+  (ver "OBB" abaixo).
+- **~2 GB de espaço livre** no cartão (jogo extraído).
+- **Bibliotecas 32-bit:** SDL2, libEGL, libGLES (geralmente pré-instaladas).
+- **Python 3** com módulo `lzma` (para a extração NxExtract; costuma vir com o CFW).
 
 ---
 
-## Passo 1: Preparar pasta do port
+## Passo 1: Copiar os arquivos do port
+
+Existem dois caminhos equivalentes:
 
 ```bash
-# SSH no handheld
-ssh root@handheld
+# Opção A — baixar o pacote pronto (recomendado):
+#   rode no seu PC de desenvolvimento:
+make package          # gera build/nextos/sims3.zip
+#   e copie o conteúdo de sims3.zip para a pasta de ports do handheld.
 
-# Acesse a pasta PortMaster
+# Opção B — copiar o repositório:
+git clone https://github.com/OlhaGatito/The-Sims-3-Android-port.git sims3
+cd sims3
+```
+
+No handheld, acesse a pasta de ports:
+
+```bash
+ssh root@handheld
 cd /mnt/mmc/MUOS/PortMaster/ports/  # muOS
 # ou
 cd /opt/roms/ports/                 # ArkOS
@@ -25,141 +39,130 @@ cd /roms/ports/                     # ROCKNIX / NextOS genérico
 
 ---
 
-## Passo 2: Copiar arquivos do port
-
-```bash
-# Clone ou copie para sims3/
-git clone https://github.com/OlhaGatito/The-Sims-3-Android-port.git sims3
-# ou
-cp -r ~/The-Sims-3-Android-port sims3
-cd sims3
-```
-
-Estrutura final:
+## Estrutura do port
 
 ```
 sims3/
-├── sims3_s3e_loader          # Executável (ARMv7)
-├── run.sh                    # Launcher principal
-├── run-fallback.sh           # Fallback (ALSA + fbcon)
-├── The Sims 3.sh             # Wrapper PortMaster
-├── detect_system.sh          # Diagnóstico
-├── port_compat.sh            # Detecção automática de backends
-├── extractor.json            # Receita de extração
-├── gatito-extract/           # Motor de extração + UI
-│   ├── run.sh
-│   ├── gatito-extract-v3.py
-│   └── BUILD.ui/
-├── hooks/                    # Scripts de processamento
-├── loader/                   # Código-fonte (opcional)
-└── game/                     # Será criado (dados extraídos)
+├── The Sims 3.sh             ← launcher PortMaster (ÚNICA entrada do jogo)
+├── port.json                 ← manifesto PortMaster (arch, min_glibc, itens)
+├── extractor.json            ← receita NxExtract (extração do APK)
+├── nxextract/                ← motor de extração NxExtract
+│   ├── nxextract.py          ← engine (recipe/hooks/checkpoints)
+│   ├── run-extractor.sh      ← entrada chamada pelo launcher
+│   ├── nxextract-runtime-env.sh
+│   ├── unpack-s3e.py         ← decoder LZMA→XE3U (migrado de hooks/)
+│   └── nxextract-ui          ← UI auxiliar (aarch64)
+├── libs/                     ← stubs LD_PRELOAD (ARMv7 hard-float)
+│   ├── libs3eAndroidJNI.so
+│   └── libs3eVFS.so
+├── sims3_s3e_loader          ← loader ARMv7 (executável)
+├── loader/                   ← código-fonte do loader (fonte única de verdade)
+├── scripts/                  ← build/verify/package/test/reconstruct
+├── README.md / INSTAL.md / COMPATIBILIDADE.md
+└── game/                     ← criado na extração (gitignored, não versionado)
 ```
 
 ---
 
-## Passo 3: Copiar APK + OBB
+## Passo 2: Copiar APK (+ OBB)
 
 ```bash
-# Coloque seus arquivos na raiz da pasta sims3:
-cp ~/The\ Sims\ 3*.apk sims3/
-cp ~/main.*.obb sims3/
-# ou crie pasta gamedata:
+# Coloque seu APK em gamedata/ (ou na raiz da pasta do port):
 mkdir -p sims3/gamedata
 cp ~/The\ Sims\ 3*.apk sims3/gamedata/
+
+# OBB (recomendado, se sua versão usar):
 cp ~/main.*.obb sims3/gamedata/
 ```
 
+> **Sobre o OBB:** o APK sozinho não contém os assets `res.dz`
+> (`assets/LowRes/` e `assets/HighRes/`) que o engine lê a partir do OBB.
+> Se o jogo reclamar desses arquivos no dispositivo, forneça o OBB na mesma
+> pasta. A extração procura OBB automaticamente.
+
 ---
 
-## Passo 4: Primeira execução
+## Passo 3: Primeira execução
 
 ### Via PortMaster (recomendado)
 
 ```bash
-# No menu do PortMaster, procure por "The Sims 3"
-# Clique para iniciar
-
-# Na primeira vez: Gatito Extractor abrirá (UI gráfica)
-# Aguarde até aparecer "Extração concluída" (pode levar 5-10 min)
-# O jogo iniciará automaticamente
+# No menu do PortMaster, procure por "The Sims 3" e inicie.
+#
+# Na primeira vez o launcher roda a extração NxExtract:
+#   - extrai assets/ e o .s3e do APK;
+#   - descompacta o .s3e (LZMA) para game/game.s3e.unpacked (payload XE3U);
+#   - valida o payload.
+# Aguarde "Extração concluída" (pode levar alguns minutos).
+# O jogo inicia automaticamente em seguida.
 ```
 
-### Via terminal (se não estiver no PortMaster)
+### Via terminal
 
 ```bash
 cd sims3
-./run.sh
+bash "The Sims 3.sh"
+```
 
-# Primeira vez: Gatito Extractor
-# Próximas vezes: Jogo direto
+Nas próximas vezes a extração é pulada (marcador `.nxextract-sims3.json`) e o
+jogo inicia direto.
+
+---
+
+## Estrutura após extração
+
+```
+sims3/
+├── game/
+│   ├── game.s3e.unpacked     ← payload XE3U do jogo (descompactado)
+│   ├── s3e                   ← .s3e original extraído (entrada do decoder)
+│   └── assets/               ← assets (áudio, modelos, texturas, …)
+├── .nxextract-sims3.json     ← marcador de instalação (gitignored)
+├── nxextract.log             ← log da extração (gitignored)
+└── logs/                     ← logs de execução
 ```
 
 ---
 
-## Passo 5: Se houver problema
+## Passo 4: Se houver problema
 
-### Gatito travou / não avança
+### Extração falhou
 
 ```bash
-# 1. Verifique o sistema:
-./detect_system.sh
+# Confirme a presença dos arquivos da receita:
+ls -la extractor.json nxextract/run-extractor.sh nxextract/unpack-s3e.py
 
-# 2. Tente fallback (backends conservadores):
-./run-fallback.sh
+# Veja o log da extração:
+tail -n 50 nxextract.log
 
-# 3. Verifique logs:
-tail logs/debug.log
-tail logs/gatito-extract-ui.log
+# Limpe e reextraia:
+rm -rf game/ .nxextract-sims3.json
+bash "The Sims 3.sh"
 ```
 
 ### Tela preta / sem som
 
 ```bash
-# Tente com backend específico:
+# Force backends específicos:
 export SDL_VIDEODRIVER=fbcon
 export SDL_AUDIODRIVER=alsa
-./run.sh
-
-# Ou use fallback:
-./run-fallback.sh
+bash "The Sims 3.sh"
 ```
 
-### Extrator travou no meio
+### Erro "incomplete NxExtract integration"
 
-```bash
-# Limpe e recomece:
-rm -rf game/
-./run.sh
-```
+O launcher exige `extractor.json` + todos os arquivos de `nxextract/`. Copie o
+port completo (ou o `sims3.zip` gerado por `make package`) em vez de arquivos
+solto.
 
 ---
 
-## Estrutura de diretórios após extração
-
-```
-sims3/
-├── game/
-│   ├── game.s3e.unpacked/        # Dados do jogo descompactados
-│   ├── assets/                   # Assets (texturas, modelos, etc.)
-│   └── ...
-├── logs/
-│   ├── debug.log
-│   ├── gatito-extract-ui.log
-│   └── fallback.log
-└── ...
-```
-
----
-
-## Limpeza (se precisar reinstalar)
+## Limpeza (reinstalar)
 
 ```bash
-# Remova apenas os dados extraídos:
-rm -rf sims3/game/
-
-# Ou limpe tudo (mantém APK/OBB):
-cd sims3
-./run.sh  # Reextrairá automaticamente
+# Remova apenas os dados extraídos (APK/OBB são mantidos):
+rm -rf sims3/game/ sims3/.nxextract-sims3.json
+# A próxima execução reextrai automaticamente.
 ```
 
 ---
@@ -167,26 +170,60 @@ cd sims3
 ## Variáveis de ambiente (avançado)
 
 ```bash
-# Forçar backend de áudio
-export SDL_AUDIODRIVER=alsa       # alsa, pulseaudio, pipewire, dsp
-
-# Forçar backend de vídeo
-export SDL_VIDEODRIVER=fbcon      # fbcon, kmsdrm, x11, wayland
+# Forçar backend de áudio / vídeo
+export SDL_AUDIODRIVER=alsa        # alsa, pulseaudio, pipewire, dsp
+export SDL_VIDEODRIVER=fbcon       # fbcon, kmsdrm, x11, wayland
 
 # Resolução customizada
 export SIMS3_W=1280
 export SIMS3_H=720
 
-# Python customizado (se instalado em lugar não padrão)
+# Python customizado para a extração
 export NXEXTRACT_PYTHON=/usr/bin/python3.10
 
 # Log customizado
 export SIMS3_LOG_DIR=/tmp/sims3-logs
-export SIMS3_EXTRACTOR_LOG=/tmp/sims3-extractor.log
 
-# Executar:
-./run.sh
+bash "The Sims 3.sh"
 ```
+
+---
+
+## Validação pós-instalação
+
+```bash
+# A extração terminou? (deve conter o payload XE3U)
+ls -la sims3/game/game.s3e.unpacked
+head -c 4 sims3/game/game.s3e.unpacked | od -An -tx1
+# Esperado: 58 45 33 55  (XE3U)
+
+# Loader presente e ELF32 ARM:
+file sims3/sims3_s3e_loader
+# Esperado: ELF 32-bit LSB executable, ARM, EABI5 hard-float
+```
+
+> **Nota:** um build bem-sucedido e a inspeção ELF **não** provam que o jogo
+> roda. A validação real (gráficos, áudio, input, saves, gameplay) exige o
+> dispositivo. Não marque compatibilidade como aprovada só porque compilou.
+
+---
+
+## Rebuild do loader (desenvolvedor)
+
+A **fonte única de verdade** do loader é `loader/`. O binário rastreado na raiz
+(`sims3_s3e_loader`) é um artefato pré-compilado; o artefato canônico é o gerado
+pelo build do SDK:
+
+```bash
+make loader      # compila em build/nextos/sims3_s3e_loader (SDK NextOS)
+make verify      # verifica ELF32/ARM/hard-float/GLIBC
+make test        # bash -n em todos os scripts
+make package     # gera build/nextos/sims3.zip
+make reconstruct # pipeline completo: extração → build → verificação → pacote
+```
+
+Todos usam o Docker do NextOS (`nextos-public-sdk:1`); **não** fazem fallback
+para o GCC nativo.
 
 ---
 
@@ -195,39 +232,22 @@ export SIMS3_EXTRACTOR_LOG=/tmp/sims3-extractor.log
 | Erro | Solução |
 |------|---------|
 | `loader is not executable` | `chmod +x sims3_s3e_loader` |
-| `SDL2 not found` | Instale `libsdl2:armhf` (depends of CFW) |
+| `incomplete NxExtract integration` | Copie o port completo (faltam arquivos de `nxextract/`) |
+| `SDL2 not found` | Instale `libsdl2:armhf` (depende do CFW) |
 | `Python 3 not found` | Instale Python 3 no seu CFW |
-| Gatito não abre | `./detect_system.sh` — confirme se SDL2 está presente |
-| Tela preta | `./run-fallback.sh` ou mude `SDL_VIDEODRIVER` |
-| Sem som | Mude `SDL_AUDIODRIVER` ou use fallback |
-| Jogo trava ao carregar | Verifique logs em `logs/debug.log` |
-
----
-
-## Validação pós-instalação
-
-```bash
-# Confirme que a extração terminou:
-ls -la sims3/game/
-# Deve conter: game.s3e.unpacked/, assets/, etc.
-
-# Confirme que o loader funciona:
-file sims3/sims3_s3e_loader
-# Deve mostrar: ELF 32-bit LSB executable, ARM
-
-# Diagnóstico completo:
-./detect_system.sh
-# Procure por: Architecture, SDL2, EGL/GLES (tudo deve estar "found")
-```
+| Extração falha em LZMA | Confirme `python3 -c "import lzma"` |
+| Tela preta | Force `SDL_VIDEODRIVER=fbcon` |
+| Sem som | Force `SDL_AUDIODRIVER=alsa` |
+| Jogo trava ao carregar | Veja `logs/` e `nxextract.log` |
 
 ---
 
 ## Suporte
 
 Se tiver problemas:
-1. Execute `./detect_system.sh` e anote a saída
-2. Procure em `logs/` pelos arquivos de log
-3. Abra uma [issue](https://github.com/OlhaGatito/The-Sims-3-Android-port/issues) com CFW, modelo, e logs
+1. Anote a saída do launcher e os logs (`nxextract.log`, `logs/`).
+2. Abra uma [issue](https://github.com/OlhaGatito/The-Sims-3-Android-port/issues)
+   com CFW, modelo handheld e logs.
 
 ---
 

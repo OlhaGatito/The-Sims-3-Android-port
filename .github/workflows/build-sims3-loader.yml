@@ -15,7 +15,6 @@ on:
       - "The Sims 3.sh"
       - "scripts/**"
       - "nxextract/**"
-      - "hooks/**"
       - "port.json"
       - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
@@ -29,7 +28,6 @@ on:
       - "The Sims 3.sh"
       - "scripts/**"
       - "nxextract/**"
-      - "hooks/**"
       - "port.json"
       - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
@@ -53,7 +51,7 @@ jobs:
         run: bash scripts/test-shell-scripts.sh
 
       - name: Check Python syntax
-        run: python3 -m py_compile nxextract/nxextract.py hooks/unpack-s3e-python.py
+        run: python3 -m py_compile nxextract/nxextract.py nxextract/unpack-s3e.py
 
       - name: Cross-compile smoke test (not a release build)
         run: |

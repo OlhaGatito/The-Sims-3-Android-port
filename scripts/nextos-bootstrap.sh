@@ -17,12 +17,17 @@ mkdir -p "$ROOT/build/nextos"
 info "Validando ferramentas dentro de $SDK_IMAGE"
 docker run --rm -e NEXTOS_SDK_IMAGE="$SDK_IMAGE" -v "$ROOT:/repo" -w /repo "$SDK_IMAGE" bash -lc '
 set -Eeuo pipefail
-for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf file python3; do
+for tool in bash make arm-linux-gnueabihf-gcc arm-linux-gnueabihf-strip readelf python3; do
   command -v "$tool" >/dev/null 2>&1 || {
     printf "[NEXTOS-BOOTSTRAP][ERRO] Ferramenta ausente no SDK: %s\n" "$tool" >&2
     exit 1
   }
 done
+# `file` is only a human-readable convenience: the documented SDK image does not
+# ship it, and readelf provides every real ELF check used by build/verify. Warn
+# instead of failing so the canonical build still runs on the available SDK.
+command -v file >/dev/null 2>&1 || \
+  printf "[NEXTOS-BOOTSTRAP][AVISO] 'file' ausente no SDK (cosmetico; readelf cobre as verificacoes).\n" >&2
 printf "SDK_IMAGE=%s\n" "${NEXTOS_SDK_IMAGE:-nextos-public-sdk:1}"
 arm-linux-gnueabihf-gcc --version | sed -n "1p"
 make --version | sed -n "1p"

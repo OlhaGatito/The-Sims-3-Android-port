@@ -8,6 +8,7 @@ O port roda em **qualquer handheld ARM Linux com:**
 - ✅ Bibliotecas 32-bit: **SDL2**, **libEGL**, **libGLESv2**
 - ✅ Backend de áudio: ALSA, PulseAudio, ou PipeWire
 - ✅ PortMaster (recomendado, mas não obrigatório)
+- ✅ **Python 3 com `lzma`** (para a extração NxExtract)
 
 ---
 
@@ -20,6 +21,7 @@ O port roda em **qualquer handheld ARM Linux com:**
 | **ABI** | Linux GNUEABIHF |
 | **Compilação** | `arm-linux-gnueabihf-gcc -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard` |
 | **Runtime** | Marmalade/S3E |
+| **GLIBC mínimo** | 2.22 (declarado em `port.json` como `min_glibc`) |
 
 **Compatibilidade de CPU:**
 - ✅ Snapdragon 410 (muOS, RG351M) — **validado**
@@ -30,6 +32,24 @@ O port roda em **qualquer handheld ARM Linux com:**
 
 ---
 
+## Fluxo real (únicas entradas)
+
+Não existem `run.sh`, `run-fallback.sh`, `detect_system.sh`, `port_compat.sh`
+nem `gatito-extract/` — foram removidos em commits antigos. O fluxo atual é:
+
+```
+The Sims 3.sh  →  NxExtract (nxextract/run-extractor.sh + extractor.json)
+               →  loader (sims3_s3e_loader --run --root game game/game.s3e.unpacked)
+```
+
+Toda invocação no terminal usa o launcher:
+
+```bash
+bash "The Sims 3.sh"
+```
+
+---
+
 ## CFW Compatível
 
 ### muOS ✅ (Validado)
@@ -37,7 +57,7 @@ O port roda em **qualquer handheld ARM Linux com:**
 | Item | Status | Notas |
 |------|--------|-------|
 | Loader | ✅ Roda | ARMv7 32-bit, hard-float |
-| Extração | ✅ OK | Gatito Extractor com UI |
+| Extração | ✅ OK | NxExtract (recipe + UI) |
 | Áudio | ✅ ALSA | Funcional |
 | Vídeo | ✅ KMS/DRM | Funcional |
 | Controles | ✅ OK | Via PortMaster |
@@ -50,7 +70,7 @@ cp The\ Sims\ 3.sh /mnt/mmc/MUOS/PortMaster/ports/
 cp -r * /mnt/mmc/MUOS/PortMaster/ports/sims3/
 
 # Ou direto:
-./run.sh
+bash "The Sims 3.sh"
 ```
 
 ---
@@ -60,18 +80,16 @@ cp -r * /mnt/mmc/MUOS/PortMaster/ports/sims3/
 | Item | Status | Notas |
 |------|--------|-------|
 | Loader | ⚠️ Provável | ARM32 libs precisam validação |
-| Extração | 🔄 Teste | Usar Gatito ou fallback |
+| Extração | 🔄 Teste | NxExtract (Python 3 + lzma) |
 | Áudio | 🔄 Teste | ALSA ou PulseAudio |
 | Vídeo | 🔄 Teste | KMS/DRM ou fbcon |
 | Gameplay | 🔄 Teste | Não validado ainda |
 
 **Diagnóstico:**
 ```bash
-./detect_system.sh
-# Procure por: "ARM32 libs: OK" e "SDL2: found"
-
-./run.sh
-# Se falhar: ./run-fallback.sh
+# Confirme as libs 32-bit:
+readelf -d sims3_s3e_loader | grep NEEDED
+bash "The Sims 3.sh"
 ```
 
 **Requisitos (instale se faltar):**
@@ -88,7 +106,7 @@ apt install libsdl2-2.0-0:armhf libegl1-mesa:armhf libgles2-mesa:armhf
 | Item | Status | Notas |
 |------|--------|-------|
 | Loader | ⚠️ Provável | Validar suporte ARM32 |
-| Extração | 🔄 Teste | Python 3 + Gatito |
+| Extração | 🔄 Teste | Python 3 + NxExtract |
 | Áudio | 🔄 Teste | Verificar backend padrão |
 | Vídeo | 🔄 Teste | Framebuffer ou DRM |
 | Gameplay | 🔄 Teste | Não validado |
@@ -96,10 +114,8 @@ apt install libsdl2-2.0-0:armhf libegl1-mesa:armhf libgles2-mesa:armhf
 **Como testar:**
 ```bash
 ssh root@rocknix
-./detect_system.sh
-# Verifique: Architecture, SDL2 path, EGL/GLES paths
-
-./run.sh
+readelf -h sims3_s3e_loader       # deve mostrar ELF32 / Machine: ARM
+bash "The Sims 3.sh"
 ```
 
 ---
@@ -114,7 +130,8 @@ ssh root@rocknix
 | Vídeo | 🔄 Teste | Qual backend padrão? |
 | Gameplay | 🔄 Teste | Não validado |
 
-**Aviso:** Se o host é AArch64 puro, o loader ARMv7 pode não funcionar sem camada ARM32 compatibilidade.
+**Aviso:** Se o host é AArch64 puro, o loader ARMv7 pode não funcionar sem
+camada de compatibilidade ARM32.
 
 ---
 
@@ -129,21 +146,15 @@ Funciona em qualquer lugar que PortMaster esteja disponível, **desde que:**
    dpkg -l | grep "libsdl2\|libegl\|libgles"
    # Todas devem estar presentes em versão `:armhf` ou genérica
    ```
-4. **Python 3:** Para Gatito Extractor
-5. **xz-utils:** Para descompactação (fallback)
+4. **Python 3 + lzma:** para a extração NxExtract
+5. **xz-utils:** opcional (fallback de descompactação)
 
 **Teste:**
 ```bash
-./detect_system.sh
-# Saída deve mostrar:
-#   Architecture: armv7 (OU aarch64 com ARM32 support)
-#   SDL2: found at /lib/arm-linux-gnueabihf
-#   EGL/GLES: found at /lib/arm-linux-gnueabihf
-```
-
-Se tudo OK:
-```bash
-./run.sh
+readelf -h sims3_s3e_loader       # ELF32, Machine: ARM
+readelf -A sims3_s3e_loader | grep VFP   # hard-float
+python3 -c "import lzma"          # extração
+bash "The Sims 3.sh"
 ```
 
 ---
@@ -159,7 +170,8 @@ Se tudo OK:
 | PipeWire | ✅ | `$PIPEWIRE_REMOTE` ou `pw-cli` |
 | OSS | ⚠️ | `/dev/dsp` (raro) |
 
-**Seleção automática:** `port_compat.sh` detecta e configura `SDL_AUDIODRIVER`.
+**Seleção automática:** o launcher negocia via SDL/firmware; `SIMS3_AUDIO_DRIVER`
+ou `AUDIO_DRIVER` podem forçar um backend.
 
 ### Vídeo
 
@@ -170,49 +182,40 @@ Se tudo OK:
 | X11 | ⚠️ | `$DISPLAY` |
 | Wayland | ⚠️ | `$WAYLAND_DISPLAY` |
 
-**Seleção automática:** `port_compat.sh` tenta KMS → Framebuffer → X11.
+**Seleção automática:** o launcher tenta KMS → Framebuffer → X11 e pode forçar
+`SDL_VIDEODRIVER=fbcon` em ambientes sem GPU.
 
 ---
 
 ## Como Validar
 
-### 1. Sistema
-
-```bash
-./detect_system.sh
-```
-
-Procure por:
-- ✅ `Architecture: armv7` ou `aarch64`
-- ✅ `SDL2: found at ...`
-- ✅ `EGL/GLES: found at ...`
-- ✅ `audio=alsa|pulseaudio|pipewire`
-- ✅ `video=kmsdrm|fbcon|x11`
-
-Se alguma falhar → seu CFW não tem dependências instaladas.
-
-### 2. Loader
+### 1. Loader
 
 ```bash
 file sims3_s3e_loader
 # Deve mostrar: ELF 32-bit LSB executable, ARM, EABI5 hard-float
 readelf -h sims3_s3e_loader
 # Procure: Machine: ARM
+readelf -l sims3_s3e_loader | grep ld-linux-armhf
 ```
 
-### 3. Extração
+### 2. Extração
 
 ```bash
-./run.sh
-# Primeira vez: Gatito Extractor abre
-# Aguarde a preparação dos dados
-# Se OK: menu do jogo aparece
+bash "The Sims 3.sh"
+# Primeira vez: NxExtract prepara os dados (game/)
+# Depois: menu do jogo
+```
+
+Confirme o payload XE3U:
+```bash
+head -c 4 game/game.s3e.unpacked | od -An -tx1   # 58 45 33 55
 ```
 
 Se falhar:
 ```bash
-./run-fallback.sh
-tail logs/fallback.log
+tail -n 50 nxextract.log
+rm -rf game/ .nxextract-sims3.json && bash "The Sims 3.sh"   # reextrair
 ```
 
 ---
@@ -225,7 +228,7 @@ tail logs/fallback.log
 ✓ arm-linux-gnueabihf libc
 ✓ ARMv7-A CPU com NEON + VFPv4
 ✓ ~2 GB de espaço livre (jogo extraído)
-✓ Python 3 (para Gatito)
+✓ Python 3 + lzma (para NxExtract)
 ```
 
 ### Recomendado (PortMaster)
@@ -239,9 +242,9 @@ tail logs/fallback.log
 ### Opcionais
 
 ```
-○ xz-utils (para fallback de descompactação)
-○ file (para diagnóstico)
-○ readelf (para diagnóstico)
+○ xz-utils (fallback de descompactação)
+○ OBB do jogo (assets res.dz de LowRes/HighRes)
+○ file / readelf (diagnóstico)
 ```
 
 ---
@@ -253,14 +256,20 @@ tail logs/fallback.log
 | "loader is not executable" | Permissões | `chmod +x sims3_s3e_loader` |
 | "SDL2 not found" | Libs 32-bit ausentes | Instale `libsdl2:armhf` |
 | "EGL/GLES not found" | Drivers gráficos ausentes | Instale `libegl1-mesa:armhf libgles2-mesa:armhf` |
-| Tela preta | Backend vídeo errado | `./run-fallback.sh` |
-| Sem som | Backend áudio errado | `export SDL_AUDIODRIVER=alsa && ./run.sh` |
-| Extrator travou | Falha na ZIP | Limpe: `rm -rf game/` e recomece |
+| "incomplete NxExtract integration" | Faltam arquivos de `nxextract/` | Copie o port completo |
+| Tela preta | Backend vídeo errado | `export SDL_VIDEODRIVER=fbcon` |
+| Sem som | Backend áudio errado | `export SDL_AUDIODRIVER=alsa` |
+| Extração falha em LZMA | `lzma` ausente | `python3 -c "import lzma"` |
+| Falta `res.dz` no jogo | OBB ausente | Forneça o OBB em `gamedata/` |
+| Extrator travou | ZIP corrompida | `rm -rf game/ .nxextract-sims3.json` |
 | Python 3 not found | Python ausente | `apt install python3` |
 
 ---
 
 ## Status de Validação
+
+> Estes resultados são os relatados pelo autor do port. Uma rodada independente
+> deve reconfirmar no próprio aparelho; build/ELF sozinhos não provam runtime.
 
 | CFW | Loader | Extração | Gameplay | Data Teste | Tester |
 |-----|--------|----------|----------|-----------|--------|
@@ -269,7 +278,7 @@ tail logs/fallback.log
 | ROCKNIX | 🔄 | 🔄 | 🔄 | Pendente | Você? |
 | NextOS | 🔄 | 🔄 | 🔄 | Pendente | Você? |
 
-**Ajude:** Teste em seu CFW e reporte `./detect_system.sh` + log!
+**Ajude:** Teste em seu CFW e reporte a saída do launcher + logs!
 
 ---
 

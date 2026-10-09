@@ -108,15 +108,86 @@ else
 fi
 
 # Game directory (NextOS pattern)
-GAMEDIR="/$directory/ports/sims3"
-[ -d "$GAMEDIR" ] || GAMEDIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/sims3"
-cd "$GAMEDIR" || exit 1
+#
+# The port ships as <port dir>/The Sims 3.sh sitting next to <port dir>/Sims3/
+# (capital "S"). Both are resolved canonically so the port works no matter which
+# directory it was started from. PortMaster's install directory is only used as
+# an extra candidate: it is never assumed to be the launcher's own directory.
+NXBOOTSTRAP_GAME_SUBDIR="Sims3"
+
+NXBOOTSTRAP_SELF=$(readlink -f -- "$0" 2>/dev/null) || NXBOOTSTRAP_SELF=""
+if [ -z "$NXBOOTSTRAP_SELF" ] || [ ! -f "$NXBOOTSTRAP_SELF" ]; then
+  echo "ERROR: cannot resolve the launcher's own path"
+  nxbootstrap_finish
+  exit 1
+fi
+NXBOOTSTRAP_PORT_DIR=$(cd -- "$(dirname -- "$NXBOOTSTRAP_SELF")" 2>/dev/null && pwd -P) \
+  || NXBOOTSTRAP_PORT_DIR=""
+if [ -z "$NXBOOTSTRAP_PORT_DIR" ] || [ ! -d "$NXBOOTSTRAP_PORT_DIR" ]; then
+  echo "ERROR: cannot resolve the launcher's directory"
+  nxbootstrap_finish
+  exit 1
+fi
+
+NXBOOTSTRAP_PM_PORT=""
+if [ -n "${directory:-}" ]; then
+  case "$directory" in
+    /*) NXBOOTSTRAP_PM_PORT="/${directory#/}" ;;
+    *)  NXBOOTSTRAP_PM_PORT="/$directory" ;;
+  esac
+  NXBOOTSTRAP_PM_PORT="${NXBOOTSTRAP_PM_PORT%/}/ports/sims3"
+fi
+
+NXBOOTSTRAP_CANDIDATES=("$NXBOOTSTRAP_PORT_DIR/$NXBOOTSTRAP_GAME_SUBDIR")
+if [ -n "$NXBOOTSTRAP_PM_PORT" ]; then
+  NXBOOTSTRAP_CANDIDATES+=("$NXBOOTSTRAP_PM_PORT/$NXBOOTSTRAP_GAME_SUBDIR")
+fi
+
+GAMEDIR=""
+for NXBOOTSTRAP_CANDIDATE in "${NXBOOTSTRAP_CANDIDATES[@]}"; do
+  [ -d "$NXBOOTSTRAP_CANDIDATE" ] || continue
+  GAMEDIR=$(cd -- "$NXBOOTSTRAP_CANDIDATE" 2>/dev/null && pwd -P) || GAMEDIR=""
+  [ -n "$GAMEDIR" ] && break
+done
+
+if [ -z "$GAMEDIR" ]; then
+  # Tell "folder missing" apart from "folder exists with the wrong capitalisation".
+  NXBOOTSTRAP_FOUND=""
+  for NXBOOTSTRAP_SIBLING in "$NXBOOTSTRAP_PORT_DIR"/*; do
+    [ -d "$NXBOOTSTRAP_SIBLING" ] || continue
+    case "${NXBOOTSTRAP_SIBLING##*/}" in
+      [Ss][Ii][Mm][Ss]3) NXBOOTSTRAP_FOUND="${NXBOOTSTRAP_SIBLING##*/}" ;;
+    esac
+  done
+  echo "ERROR: game directory not found"
+  echo "  expected: $NXBOOTSTRAP_PORT_DIR/$NXBOOTSTRAP_GAME_SUBDIR"
+  if [ -n "$NXBOOTSTRAP_PM_PORT" ]; then
+    echo "  PortMaster candidate: $NXBOOTSTRAP_PM_PORT/$NXBOOTSTRAP_GAME_SUBDIR (absent)"
+  fi
+  if [ -n "$NXBOOTSTRAP_FOUND" ] && [ "$NXBOOTSTRAP_FOUND" != "$NXBOOTSTRAP_GAME_SUBDIR" ]; then
+    echo "  found   : $NXBOOTSTRAP_PORT_DIR/$NXBOOTSTRAP_FOUND"
+    echo "  the folder must be named exactly '$NXBOOTSTRAP_GAME_SUBDIR' (case sensitive)"
+  fi
+  nxbootstrap_finish
+  exit 1
+fi
+
+cd -- "$GAMEDIR" || {
+  echo "ERROR: cannot enter the game directory: $GAMEDIR"
+  nxbootstrap_finish
+  exit 1
+}
 GAMEDIR=$(pwd -P)
+unset NXBOOTSTRAP_CANDIDATES NXBOOTSTRAP_CANDIDATE NXBOOTSTRAP_SIBLING NXBOOTSTRAP_FOUND
 
 # Log rotation
 [ -s "$GAMEDIR/log.txt" ] && mv -f "$GAMEDIR/log.txt" "$GAMEDIR/log.prev.txt" 2>/dev/null
 exec > "$GAMEDIR/log.txt" 2>&1
 echo "== The Sims 3 | nxbootstrap pattern | cfw=${CFW_NAME:-none} =="
+echo "[INFO] launcher    : $NXBOOTSTRAP_SELF"
+echo "[INFO] port dir    : $NXBOOTSTRAP_PORT_DIR"
+echo "[INFO] game dir    : $GAMEDIR"
+echo "[INFO] PortMaster  : ${NXBOOTSTRAP_PM_PORT:-not informed}"
 
 # Executable validation (NextOS pattern)
 NXBOOTSTRAP_EXECUTABLE=$(readlink -f "$GAMEDIR/sims3_s3e_loader" 2>/dev/null) || NXBOOTSTRAP_EXECUTABLE=""
@@ -224,9 +295,17 @@ NXEXTRACT_REQUESTED=1
 if [ "$NXEXTRACT_REQUESTED" = 1 ]; then
   NXEXTRACT_INCOMPLETE=0
   [ -n "$NXDIR" ] && [ ! -L "$NXDIR" ] || NXEXTRACT_INCOMPLETE=1
+  if [ -z "$NXDIR" ]; then
+    echo "ERROR: NxExtract directory not found (looked for $GAMEDIR/nxextract/run-extractor.sh)"
+    nxbootstrap_finish
+    exit 1
+  fi
   for nxfile in "$GAMEDIR/extractor.json" "$NXDIR/run-extractor.sh" \
     "$NXDIR/nxextract-runtime-env.sh" "$NXDIR/nxextract.py" "$NXDIR/nxextract-ui"; do
-    [ -f "$nxfile" ] && [ -s "$nxfile" ] && [ ! -L "$nxfile" ] || NXEXTRACT_INCOMPLETE=1
+    if [ ! -f "$nxfile" ] || [ ! -s "$nxfile" ] || [ -L "$nxfile" ]; then
+      echo "ERROR: required NxExtract file is missing or unsafe: $nxfile"
+      NXEXTRACT_INCOMPLETE=1
+    fi
   done
   if [ "$NXEXTRACT_INCOMPLETE" = 1 ]; then
     echo "ERROR: incomplete NxExtract integration"
@@ -255,8 +334,21 @@ while IFS= read -r required_file; do
     "$GAMEDIR"/*) ;;
     *) required_path="" ;;
   esac
-  if [ -z "$required_path" ] || [ ! -f "$required_path" ] || \
-     [ ! -s "$required_path" ] || [ -L "$GAMEDIR/$required_file" ]; then
+  # Refuse anything that does not resolve inside the game directory.
+  if [ -z "$required_path" ] || [ -L "$GAMEDIR/$required_file" ]; then
+    echo "ERROR: required file is missing or unsafe: $required_file"
+    nxbootstrap_finish
+    exit 1
+  fi
+  # "game/assets" is the extracted resource directory; everything else on this
+  # list is a regular file. Accept the right kind for each and demand content.
+  if [ -d "$required_path" ]; then
+    if [ -z "$(ls -A "$required_path" 2>/dev/null)" ]; then
+      echo "ERROR: required directory is missing or empty: $required_file"
+      nxbootstrap_finish
+      exit 1
+    fi
+  elif [ ! -f "$required_path" ] || [ ! -s "$required_path" ]; then
     echo "ERROR: required file is missing or unsafe: $required_file"
     nxbootstrap_finish
     exit 1
@@ -312,16 +404,21 @@ input.controller-api'
 export NXCOMPAT_ENABLED_QUIRKS='video.fbcon-fallback'
 export NXCOMPAT_RUNTIME_REPORT=log-and-logo
 
-# S3E Extension stubs via LD_PRELOAD (NextOS LD_PRELOAD pattern)
-# Single libs/ holds the armhf (ARMv7 hard-float) stubs matching our loader;
-# they are correct for the armhf loader even when the CFW runs aarch64.
-STUBS_DIR="$GAMEDIR/libs"
-STUBS_PRELOAD=""
-for stub in libs3eAndroidJNI.so libs3eVFS.so; do
-  [ -f "$STUBS_DIR/$stub" ] && STUBS_PRELOAD="${STUBS_PRELOAD:+$STUBS_PRELOAD:}$STUBS_DIR/$stub"
-done
-[ -n "$STUBS_PRELOAD" ] && export LD_PRELOAD="${STUBS_PRELOAD}${LD_PRELOAD:+:$LD_PRELOAD}"
-echo "[INFO] S3E Extension Stubs: ${STUBS_PRELOAD:-none found}"
+# Native library resolution
+#
+# The port ships the ORIGINAL Android library extracted from the APK at
+# $GAMEDIR/libs/libs3e_android.so (SONAME: libs3e_android.so). It is reached
+# through the LD_LIBRARY_PATH built above. It is never preloaded: the loader
+# does not list it in DT_NEEDED and contains no "libs3e" string to dlopen, and
+# its unique SONAME cannot shadow any firmware library. No other .so is
+# shipped or referenced here; libs/ holds native APK content only.
+NXBOOTSTRAP_ORIGINAL_LIB="$GAMEDIR/libs/libs3e_android.so"
+if [ -f "$NXBOOTSTRAP_ORIGINAL_LIB" ]; then
+  echo "[INFO] original lib: $NXBOOTSTRAP_ORIGINAL_LIB (present)"
+else
+  echo "[WARN] original lib missing: $NXBOOTSTRAP_ORIGINAL_LIB"
+fi
+unset NXBOOTSTRAP_ORIGINAL_LIB
 
 # Smart video fallback (NextOS pattern)
 if [ -f "$GAMEDIR/log.txt" ] && grep -q "ERROR: Could not queue pageflip" "$GAMEDIR/log.txt" 2>/dev/null; then
@@ -352,7 +449,7 @@ echo "Loader: $BIN"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 echo "SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-auto}"
 echo "SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-auto}"
-[ -n "$STUBS_PRELOAD" ] && echo "LD_PRELOAD=$STUBS_PRELOAD"
+[ -n "${LD_PRELOAD:-}" ] && echo "LD_PRELOAD=$LD_PRELOAD"
 
 # Signal handling (NextOS pattern)
 game_pid=

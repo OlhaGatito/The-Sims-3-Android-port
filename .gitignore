@@ -6,13 +6,25 @@ extracted/
 obb/
 
 # Local game data
-game/*
+# Nota: a regra anterior era "game/*". Depois da reorganizacao manual todo o
+# dado vive em Sims3/, e um padrao com "/" no meio fica ancorado na raiz do
+# repositorio — ou seja, "game/*" deixou de cobrir Sims3/game/* (s3e, assets/ e
+# game.s3e.unpacked iam parar no commit). Corrigido para o caminho real.
+Sims3/game/*
+
+# NxExtract workspace: guarda as copias encenadas dos dados extraidos a cada
+# instalacao (.nxextract/sims3-s3e/stage/...) e o estado da transacao.
+.nxextract/
+.nxextract-sims3.json
 
 # Build/intermediate files
 *.o
 *.obj
 build/
 dist/
+
+# Biblioteca nativa original do APK (propsprietary — extrair na hora da instalacao)
+libs/
 
 # Python bytecode (from py_compile / running nxextract)
 __pycache__/
@@ -22,6 +34,8 @@ __pycache__/
 *.log
 *.dump
 *.core
+Sims3/log.txt
+Sims3/log.prev.txt
 
 # Temporary files
 *.bak

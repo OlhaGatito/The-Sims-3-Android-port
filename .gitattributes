@@ -1,0 +1,16 @@
+# Git attributes for NextOS compatibility
+# Force LF line endings for shell scripts and JSON
+*.sh text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.c text eol=lf
+*.md text eol=lf
+*.log text eol=lf
+
+# Binary files
+*.so binary
+*.dat binary
+*.zip binary
+*.apk binary
+*.obb binary
+*.s3e binary

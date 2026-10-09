@@ -1,18 +1,33 @@
-# Cross-compile ARMv7 hard-float (roda em userspace armhf 32 bits).
-# Ex.: make CC=arm-linux-gnueabihf-gcc
-CC      ?= arm-linux-gnueabihf-gcc
-STRIP   ?= $(patsubst %gcc,%strip,$(CC))
-CFLAGS  ?= -O2
-CFLAGS  += -std=c11 -D_GNU_SOURCE -Wall -Iloader/include -Iloader/third_party -Iloader/third_party/lzma \
-           -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
-LDLIBS  += -ldl -pthread -lm
-SRC     := loader/src/derbh.c loader/src/main.c loader/src/nxmix.c loader/src/s3e_audio.c loader/src/s3e_config.c loader/src/s3e_file.c loader/src/s3e_gl.c loader/src/s3e_host.c loader/src/s3e_image.c loader/src/s3e_input.c loader/src/s3e_runtime.c loader/third_party/lzma/LzmaDec.c
-TARGET  := sims3_s3e_loader
+# Canonical development entry points: build with the documented NextOS SDK.
+# The loader has its own Makefile under loader/; this root Makefile must not build
+# ARM code with the host compiler or overwrite the tracked loader binaries.
+SHELL := /bin/bash
 
-all: $(TARGET)
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(LDLIBS)
-	$(STRIP) -s $@
+.PHONY: all bootstrap loader verify test package reconstruct clean
+
+all: loader
+
+bootstrap:
+	bash scripts/nextos-bootstrap.sh
+
+loader:
+	bash scripts/build-loader-nextos.sh
+
+verify:
+	bash scripts/verify-loader-nextos.sh
+
+test:
+	bash scripts/test-shell-scripts.sh
+
+package:
+	bash scripts/package-nextos-port.sh
+
+# Full reconstruction pipeline (extract -> build -> verify -> package -> report).
+# Idempotent and non-destructive: never runs `make clean`, never installs
+# dependencies, never overwrites tracked files.
+reconstruct:
+	bash scripts/reconstruct-port.sh $(APK)
+
 clean:
-	rm -f $(TARGET)
-.PHONY: all clean
+	rm -rf build/nextos
+	@echo "Removed generated NextOS build artifacts; tracked loaders and stubs were preserved."

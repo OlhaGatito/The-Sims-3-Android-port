@@ -1,0 +1,26 @@
+{
+  "attr": {
+    "arch": [
+      "armhf",
+      "aarch64"
+    ],
+    "min_glibc": "2.22",
+    "title": "The Sims 3"
+  },
+  "items": [
+    "The Sims 3.sh",
+    "port.json",
+    "extractor.json",
+    "nxextract/",
+    "libs/",
+    "sims3_s3e_loader",
+    "INSTAL.md",
+    "COMPATIBILIDADE.md",
+    "README.md"
+  ],
+  "items_opt": [
+    "sims3.gptk"
+  ],
+  "name": "sims3.zip",
+  "version": 1
+}

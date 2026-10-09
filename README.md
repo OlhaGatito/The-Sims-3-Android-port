@@ -1,132 +1,32 @@
-# 🎮 The Sims 3 — Android → Linux ARM
+# The Sims 3 — Port para Linux portátil
 
-> Port experimental de **The Sims 3 (Android)** para handhelds Linux (ARMv7 hard‑float), usando runtime **Marmalade/S3E** e sistema de extração **NXExtract**.
+Port em desenvolvimento para dispositivos Linux portáteis com PortMaster. **É necessário fornecer seus próprios arquivos do jogo**; este repositório não distribui o APK, OBB ou outros dados proprietários da EA.
 
----
+> **Estado:** experimental. A compatibilidade completa e a extração do APK ainda precisam ser confirmadas no dispositivo e com a versão do jogo utilizada.
 
-## ⚡ Estado atual
+## Antes de começar
 
-| 🚦 | Condição |
-|----|----------|
-| 🧪 | **Em validação** – loader compilado, mas renderização e áudio ainda precisam de testes em hardware. |
-| 📅 | Última atualização: **2026‑10‑05** |
+- Um dispositivo compatível com PortMaster e suporte a executáveis ARM de 32 bits.
+- Seu próprio backup do APK do The Sims 3 para Android e os arquivos de dados exigidos pela sua versão.
+- Aproximadamente 2 GB de espaço livre para os dados extraídos.
 
----
+Consulte [Instalação](INSTAL.md) e [Compatibilidade](COMPATIBILIDADE.md) antes de copiar os arquivos.
 
-## 📦 Como usar (usuário final)
+## Instalação resumida
 
-> ⚠️ Nenhum arquivo proprietário (APK, OBB, assets) está neste repositório.  
-> Você deve providenciar os arquivos legalmente a partir do seu próprio backup.
+1. Baixe o ZIP do repositório pelo botão **Code → Download ZIP**.
+2. Copie a pasta do port para a pasta de ports do seu firmware.
+3. Prepare os arquivos do jogo conforme o guia de [instalação](INSTAL.md).
+4. Abra **The Sims 3** pelo PortMaster.
 
-### 1️⃣ Preparação
+A extração inicial depende de a receita incluída reconhecer sua cópia do APK. Como isso ainda não foi validado de forma conclusiva, não há garantia de que a primeira execução ou o jogo completo funcione em todos os dispositivos.
 
-Copie seu **APK** e **OBB** para a pasta `data/`:
+## Se algo der errado
 
-```bash
-cp ~/Downloads/the-sims-3-*.apk data/
-cp ~/Downloads/main.*.obb data/
-```
+- Confira o guia de [instalação e solução de problemas](INSTAL.md).
+- Consulte o estado por firmware em [Compatibilidade](COMPATIBILIDADE.md).
+- Ao relatar um problema, informe o modelo do dispositivo, o firmware utilizado e os logs gerados pelo port.
 
-Execute o *setup*:
+## Licença e arquivos do jogo
 
-```bash
-./setup.sh
-```
-
-Ele vai:
-- Extrair o APK
-- Descompactar o `.s3e` (usando **NXExtract**)
-- Validar os arquivos
-- Preparar o *stage* para o loader
-
-### 2️⃣ Execução
-
-Rode o port:
-
-```bash
-./run.sh
-```
-
-Se houver problema:
-
-```bash
-./run-fallback.sh      # versão alternativa
-./run-extractor.sh     # apenas prepara dados, sem iniciar o jogo
-```
-
----
-
-## 🗂️ Estrutura do repositório
-
-| 📁 Pasta | Conteúdo |
-|---------|----------|
-| `loader/` | Runtime Marmalade/S3E compilado (ARMv7‑A hard‑float) |
-| `nxextract/` | Motor de extração transacional (stage → hooks → validation → commit) |
-| `hooks/` | Scripts que transformam o payload (ex.: descompactação LZMA) |
-| `data/` | **Coloque aqui seu APK e OBB!** |
-| `sims3_s3e_loader` | Binário do loader pronto |
-| `port.json` | Metadata (versão, ABI, reciprocidade) |
-| `run*.sh` | Scripts de execução e *fallback* |
-| `docs/` | Documentação de arquitetura (veja **Main**) |
-
----
-
-## 🔍 Como testar
-
-```bash
-# Verifique o loader:
-ls -l sims3_s3e_loader
-file sims3_s3e_loader
-readelf -h sims3_s3e_loader
-
-# Rode o *setup* para preparar os dados:
-./setup.sh
-
-# Verifique o *stage* preparado:
-ls -la stage/game/
-```
-
-> Se tudo estiver OK, você verá `stage/game/game.s3e.unpacked` com header **`XE3U`**.
-
----
-
-## 🛠️ Configuração gráfica (opcional)
-
-Se precisar ajustar a renderização, defina variáveis antes de rodar:
-
-```bash
-export SDL_VIDEODRIVER=wayland    # ou fbcon, drm, etc.
-export SDL_VIDEO_WIDTH=800
-export SDL_VIDEO_HEIGHT=600
-./run.sh
-```
-
-> Geralmente o CFW já define isso. Ajuste apenas se o jogo não iniciar.
-
----
-
-## 📚 Documentação detalhada (centralizada)
-
-Veja a documentação técnica completa em:
-- **`Main/docs/INSTAL_SIMS3.md`** – instalação passo‑a‑passo
-- **`Main/docs/ARCHITECTURE_SIMS3.md`** – arquitetura do loader e NXExtract
-- **`Main/docs/CHECKLIST_SIMS3.md`** – diagnóstico completo
-- **`Main/docs/COMPATIBILITY-REPORT-TEMPLATE.md`** – como reportar compatibilidade
-
----
-
-## 🧑‍💻 Como contribuir
-
-1. **Fork** do repositório **Main** (código‑fonte e documentação).
-2. Corrija bugs no loader, melhore scripts ou atualize compatibilidade com novos CFWs.
-3. Abra *pull‑request* descrevendo o teste realizado.
-4. Quando validado pelo CI, uma nova versão será atualizada aqui.
-
----
-
-## ⚖️ Licença
-
-Código‑fonte sob **GPL‑2.0‑or‑later** (não cobre direitos do jogo).  
-Consulte `LICENSE`.
-
----
+O código do port está sob a licença indicada em [LICENSE](LICENSE). **The Sims 3 e seus recursos permanecem propriedade da EA.** Não envie APK, OBB ou dados proprietários para este repositório.

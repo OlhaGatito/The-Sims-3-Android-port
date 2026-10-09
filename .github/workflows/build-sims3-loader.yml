@@ -1,75 +1,73 @@
-name: Build The Sims 3 ARM loader
+name: Loader and Port CI
 
+# This GitHub-hosted build is a smoke test only. The canonical/release build
+# must use scripts/build-loader-nextos.sh with the documented NextOS SDK.
+# CI never executes ARM binaries without a matching ARM root filesystem and
+# never overwrites the tracked loader binaries.
 on:
   push:
     branches:
       - main
-      - codex/sims3-lzma-sdk-decoder-2026-09-30
     paths:
       - "loader/**"
+      - "scripts/**"
       - "Makefile"
+      - "The Sims 3.sh"
+      - "scripts/**"
+      - "nxextract/**"
+      - "port.json"
+      - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
   pull_request:
     branches:
       - main
     paths:
       - "loader/**"
+      - "scripts/**"
       - "Makefile"
+      - "The Sims 3.sh"
+      - "scripts/**"
+      - "nxextract/**"
+      - "port.json"
+      - "extractor.json"
       - ".github/workflows/build-sims3-loader.yml"
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Install ARMv7 hard-float toolchain
+      - name: Install ARMv7 smoke-test toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+          sudo apt-get install -y gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf file
 
-      - name: Build loader
+      - name: Check shell syntax
+        run: bash scripts/test-shell-scripts.sh
+
+      - name: Check Python syntax
+        run: python3 -m py_compile nxextract/nxextract.py nxextract/unpack-s3e.py
+
+      - name: Cross-compile smoke test (not a release build)
         run: |
-          make clean
-          make CC=arm-linux-gnueabihf-gcc STRIP=arm-linux-gnueabihf-strip
-          file sims3_s3e_loader
+          mkdir -p build/ci
+          make -C loader \
+            TARGET="$PWD/build/ci/sims3_s3e_loader" \
+            CC=arm-linux-gnueabihf-gcc \
+            STRIP=arm-linux-gnueabihf-strip
+          file build/ci/sims3_s3e_loader
+          readelf -h build/ci/sims3_s3e_loader | grep "Class:.*ELF32"
+          readelf -h build/ci/sims3_s3e_loader | grep "Machine:.*ARM"
+          readelf -l build/ci/sims3_s3e_loader | grep "/lib/ld-linux-armhf.so.3"
+          readelf -A build/ci/sims3_s3e_loader | grep "Tag_ABI_VFP_args: VFP registers"
+          readelf -d build/ci/sims3_s3e_loader | grep "(NEEDED)"
 
-      - name: Upload compiled loader
-        uses: actions/upload-artifact@v4
-        with:
-          name: sims3-s3e-loader-armv7-hardfloat
-          path: sims3_s3e_loader
-          if-no-files-found: error
-
-  publish:
-    if: github.event_name == 'push'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Download compiled loader
-        uses: actions/download-artifact@v4
-        with:
-          name: sims3-s3e-loader-armv7-hardfloat
-          path: .build-artifact
-
-      - name: Keep the tracked loader binary in sync
+      - name: Report release-build requirement
         run: |
-          cp .build-artifact/sims3_s3e_loader sims3_s3e_loader
-          if git diff --quiet -- sims3_s3e_loader; then
-            echo "The tracked loader binary is already up to date."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sims3_s3e_loader
-          git commit -m "Build ARMv7 hard-float loader"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "CI smoke build passed. For canonical artifacts, use scripts/build-loader-nextos.sh with nextos-public-sdk:1."
+          echo "The loader was not executed here; runtime validation requires the target root filesystem or device."

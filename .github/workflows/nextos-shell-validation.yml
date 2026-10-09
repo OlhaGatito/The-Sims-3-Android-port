@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
-    paths:
-      - "**/*.sh"
-      - ".github/workflows/nextos-shell-validation.yml"
-  pull_request:
-    branches:
-      - main
     paths:
       - "**/*.sh"
       - ".github/workflows/nextos-shell-validation.yml"

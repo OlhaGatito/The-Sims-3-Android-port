@@ -191,11 +191,13 @@ hexdump -C game/game.s3e | head -1
 {
   "name": "sims3",
   "version": 1,
-  "arch": ["armhf", "aarch64"], // AArch64 exige suporte do firmware a executáveis ARM32
+  "arch": ["armhf", "aarch64"],
   "min_glibc": "2.17",
   "title": "The Sims 3"
 }
 ```
+
+A entrada `aarch64` descreve hosts AArch64 que conseguem executar o loader ARM32; ela não significa que exista um loader AArch64 nativo neste repositório.
 
 ---
 
